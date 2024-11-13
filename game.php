@@ -7,46 +7,29 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_NAME', 'number_guessing_game');
 
-// Create a new connection
-$mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+// Create a new connection to the database server (without specifying the database yet)
+$mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS);
 
 // Check the connection
 if ($mysqli->connect_error) {
     die("Connection failed: " . $mysqli->connect_error);
 }
 
-// Ensure the user is logged in and the user_id is set
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
-    if (isset($_SESSION['user_id'])) {
-        $userId = $_SESSION['user_id']; // Retrieve the user ID from the session
-    } else {
-        echo "User ID is missing in session.";
-        exit();
-    }
-} else {
-    echo "User not logged in.";
-    exit(); // End execution if user is not logged in
-}
-
-// Initialize a new game or reset if requested
-if (!isset($_SESSION['target_number']) || isset($_POST['new_game'])) {
-    initializeGame();
-}
-
-// Store user ID in session after it is fetched
-$_SESSION['user_id'] = $userId;  // Ensure the user_id is properly set in session
+// Create the database if it doesn't exist
+$mysqli->query("CREATE DATABASE IF NOT EXISTS " . DB_NAME);
+$mysqli->select_db(DB_NAME); // Switch to the created database
 
 // Create tables if they don't exist
 $createTables = [
+    "CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )",
     "CREATE TABLE IF NOT EXISTS guesses (
         id INT AUTO_INCREMENT PRIMARY KEY,
         guess VARCHAR(5) NOT NULL,
         feedback JSON NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )",
-    "CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(50) NOT NULL UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )",
     "CREATE TABLE IF NOT EXISTS game_statistics (
@@ -66,6 +49,35 @@ foreach ($createTables as $sql) {
     }
 }
 
+// Ensure the user is logged in and the user_id is set
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
+    if (isset($_SESSION['user_id'])) {
+        $userId = $_SESSION['user_id'];
+    } else {
+        echo "User ID is missing in session.";
+        exit();
+    }
+} else {
+    echo "User not logged in.";
+    exit();
+}
+
+// Continue with the rest of your code...
+
+// Initialize a new game or reset if requested
+if (!isset($_SESSION['target_number']) || isset($_POST['new_game'])) {
+    // If restarting mid-game, do not save statistics
+    if (isset($_POST['new_game']) && $_SESSION['attempts'] > 0 && !$_SESSION['correct_guess']) {
+        $_SESSION['game_status'] = 'reset'; // Mid-game reset
+    }
+    initializeGame();
+}
+
+// Store user ID in session after it is fetched
+$_SESSION['user_id'] = $userId;  // Ensure the user_id is properly set in session
+
+
+
 // Initialize $guess and $feedback to avoid undefined variable warning
 $guess = null;  // Default value for guess
 $feedback = null; // Initialize feedback variable
@@ -81,13 +93,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guess']) && !empty($_
     processGuess($guess); // Call the function to process the guess
 }
 
+
+// Reset game function without saving stats
 function initializeGame() {
-    $_SESSION['target_number'] = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT); // Set a random 5-digit target number
-    $_SESSION['attempts'] = 0; // Reset the number of attempts
-    $_SESSION['guesses'] = []; // Initialize guesses array
-    $_SESSION['correct_guess'] = false; // Track if the game is completed successfully
+    $_SESSION['target_number'] = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT);
+    $_SESSION['attempts'] = 0;
+    $_SESSION['guesses'] = [];
+    $_SESSION['correct_guess'] = false;
+    $_SESSION['game_status'] = 'in_progress';
     session_regenerate_id(true);
 }
+
+
 
 
 
@@ -115,7 +132,7 @@ function processGuess($guess) {
         $_SESSION['correct_guess'] = true; // Mark the game as completed successfully
         saveGameStatistics(); // Save the statistics
          // Start a new game automatically upon correct guess
-         initializeGame(); // This will reset target number, attempts, and guesses
+         
     }
 
     // Save guess and feedback to session
@@ -149,12 +166,13 @@ if (isset($_POST['guess'])) { // Check if the form was submitted with a guess
         echo "<script>alert('Please enter exactly 5 digits.');</script>"; // Show an alert if the guess is invalid
     }
 }
-// Check for "Start New Game" button click
+// Check if the "Start New Game" button was clicked
 if (isset($_POST['new_game'])) {
-    if ($_SESSION['attempts'] > 0) {
-        saveGameStatistics(); // Save stats before resetting the game
+    // Save statistics if it’s a mid-game reset
+    if ($_SESSION['attempts'] > 0 && $_SESSION['game_status'] === 'in_progress') {
+        saveGameStatistics(); // Save the stats if necessary
     }
-    initializeGame();
+    initializeGame(); // Reset the game session variables
 }
 
 
@@ -167,21 +185,20 @@ if (isset($_POST['logout'])) {
 
 function getStatistics() {
     global $mysqli;
-    
+
     // Get the total number of users
     $result = $mysqli->query("SELECT COUNT(*) AS total_users FROM users");
     $total_users = $result->fetch_assoc()['total_users'];
-    
+
     // Get the total number of games played
     $result = $mysqli->query("SELECT COUNT(*) AS total_games FROM guesses");
     $total_games = $result->fetch_assoc()['total_games'];
-    
-// Revised Average Moves Calculation
-$result = $mysqli->query("SELECT AVG(total_moves) AS average_moves FROM game_statistics");
-$average_moves = $result->fetch_assoc()['average_moves'];
 
+    // Get the average moves per game
+    $result = $mysqli->query("SELECT AVG(total_moves) AS average_moves FROM game_statistics");
+    $average_moves = $result->fetch_assoc()['average_moves'];
 
-    // Get the total number of correct guesses
+    // Get the total correct guesses
     $result = $mysqli->query("SELECT COUNT(*) AS total_correct FROM guesses WHERE feedback LIKE '%correct%'");
     $total_correct = $result->fetch_assoc()['total_correct'];
 
@@ -189,10 +206,10 @@ $average_moves = $result->fetch_assoc()['average_moves'];
         'total_users' => $total_users,
         'total_games' => $total_games,
         'average_moves' => round($average_moves, 1),
-        'total_guesses' => $total_games, // Assuming total games is the total guesses
-        'total_correct' => $total_correct, // Correct guesses directly from the database
+        'total_correct' => $total_correct,
     ];
 }
+
 
 
 // Get statistics
@@ -268,18 +285,20 @@ function saveGameStatistics() {
     global $mysqli;
     $userId = $_SESSION['user_id'];
     $totalMoves = $_SESSION['attempts'];
-    $outcome = $_SESSION['correct_guess'] ? 'win' : 'lose';
-    $totalCorrectGuesses = $_SESSION['correct_guess'] ? 1 : 0;
+    $outcome = $_SESSION['correct_guess'] ? 'win' : 'reset';
 
-    $stmt = $mysqli->prepare("INSERT INTO game_statistics (user_id, total_moves, outcome, total_correct_guesses) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("iisi", $userId, $totalMoves, $outcome, $totalCorrectGuesses);
-    if (!$stmt->execute()) {
-        error_log("Database insert error (statistics): " . $stmt->error);
-    } else {
-        error_log("Statistics saved successfully for user: " . $userId);
+    // Only save if the game was won or lost, not if reset mid-game
+    if ($outcome !== 'reset') {
+        $totalCorrectGuesses = $_SESSION['correct_guess'] ? 1 : 0;
+
+        $stmt = $mysqli->prepare("INSERT INTO game_statistics (user_id, total_moves, outcome, total_correct_guesses) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("iisi", $userId, $totalMoves, $outcome, $totalCorrectGuesses);
+
+        if (!$stmt->execute()) {
+            error_log("Database insert error (statistics): " . $stmt->error);
+        }
+        $stmt->close();
     }
-    $stmt->execute();
-    $stmt->close();
 }
 
 
@@ -297,7 +316,7 @@ $stats = getStatistics();
 function getUserStatistics($userId) {
     global $mysqli;
 
-    // Total games played
+    // Total games played by the user
     $stmt = $mysqli->prepare("SELECT COUNT(*) AS total_games FROM game_statistics WHERE user_id = ?");
     $stmt->bind_param("i", $userId);
     $stmt->execute();
@@ -305,7 +324,15 @@ function getUserStatistics($userId) {
     $total_games = $result->fetch_assoc()['total_games'] ?? 0;
     $stmt->close();
 
-    // Average moves per game
+    // Total wins by the user
+    $stmt = $mysqli->prepare("SELECT COUNT(*) AS total_wins FROM game_statistics WHERE user_id = ? AND outcome = 'win'");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $total_wins = $result->fetch_assoc()['total_wins'] ?? 0;
+    $stmt->close();
+
+    // Average moves per game for the user
     $stmt = $mysqli->prepare("SELECT AVG(total_moves) AS average_moves FROM game_statistics WHERE user_id = ?");
     $stmt->bind_param("i", $userId);
     $stmt->execute();
@@ -313,25 +340,13 @@ function getUserStatistics($userId) {
     $average_moves = $result->fetch_assoc()['average_moves'] ?? 0;
     $stmt->close();
 
-    // Total guesses and correct guesses
-    $stmt = $mysqli->prepare("SELECT SUM(total_moves) AS total_guesses, SUM(total_correct_guesses) AS total_correct FROM game_statistics WHERE user_id = ?");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
-    $total_guesses = $row['total_guesses'] ?? 0;
-    $total_correct = $row['total_correct'] ?? 0;
-    $stmt->close();
-
     return [
         'total_games' => $total_games,
+        'total_wins' => $total_wins,
         'average_moves' => round($average_moves, 2),
-        'total_guesses' => $total_guesses,
-        'total_correct' => $total_correct
+        'win_ratio' => $total_games > 0 ? round(($total_wins / $total_games) * 100, 2) : 0
     ];
 }
-
-
 
 // Usage: Assume $userId is retrieved from the session
 $stats = getUserStatistics($userId);
@@ -495,9 +510,10 @@ $mysqli->close();
         <?php if ($guess && $guess === $_SESSION['target_number']): ?>
             <p class="result-message">🎉 Congratulations! You guessed the number in <?= count($_SESSION['guesses']) ?> moves!</p>
             <p>The correct number was: <?= htmlspecialchars($_SESSION['target_number']) ?></p>
+            
             <!-- Offer a button to start a new game -->
             <form method="post">
-                <button type="submit" class="btn" name="new_game" value="Start New Game">Start New Game</button>
+                <button type="submit" class="btn" name="new_game" value="1">Start New Game</button>
             </form>
         <?php else: ?>
             <form method="post">
@@ -534,12 +550,13 @@ $mysqli->close();
         </div>
 
         <div class="statistics">
-            <h3>Statistics</h3>
-            <p>Total Games Played: <?= $stats['total_games'] ?></p>
-            <p>Average Moves per Game: <?= $stats['average_moves'] ?></p>
-            <p>Total Guesses: <?= $stats['total_guesses'] ?></p>
-            <p>Total Correct Guesses: <?= $stats['total_correct'] ?></p>
-        </div>
+    <h2>Game Statistics</h2>
+    <p>Total Games Played: <?php echo $stats['total_games']; ?></p>
+    <p>Total Wins: <?php echo $stats['total_wins']; ?></p>
+    <p>Average Moves per Game: <?php echo $stats['average_moves']; ?></p>
+    <p>Win Ratio: <?php echo $stats['win_ratio']; ?>%</p>
+</div>
+
 
         <form method="post">
             <button type="submit" class="btn" name="logout">Log Out</button>

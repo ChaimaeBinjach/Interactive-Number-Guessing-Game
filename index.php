@@ -2,13 +2,13 @@
 session_start(); // Start a new session or resume the existing session
 
 // Database connection parameters
-$host = 'localhost'; 
-$user = 'root'; 
-$password = ''; 
-$dbname = 'number_guessing_game'; 
+$host = 'localhost';
+$user = 'root';
+$password = '';
+$dbname = 'number_guessing_game';
 
-// Create a connection to the database
-$link = mysqli_connect($host, $user, $password, $dbname); 
+// Create a connection to the database server (without specifying the database yet)
+$link = mysqli_connect($host, $user, $password);
 
 // Check connection
 if (!$link) {
@@ -16,12 +16,15 @@ if (!$link) {
 }
 
 // Create the database if it doesn't exist
-$db_create_query = "CREATE DATABASE IF NOT EXISTS $dbname"; 
+$db_create_query = "CREATE DATABASE IF NOT EXISTS $dbname";
 if (mysqli_query($link, $db_create_query)) {
     mysqli_select_db($link, $dbname);
 } else {
     die("Error creating database: " . mysqli_error($link));
 }
+
+// Now that the database exists, connect to it
+$link = mysqli_connect($host, $user, $password, $dbname);
 
 // Create the users table if it doesn't exist
 $table_create_query = "
@@ -36,21 +39,23 @@ if (!mysqli_query($link, $table_create_query)) {
 }
 
 // Insert default users if the table is empty
-$check_empty_query = "SELECT COUNT(*) AS count FROM `users`"; 
-$result = mysqli_query($link, $check_empty_query); 
-$row = mysqli_fetch_assoc($result); 
+$check_empty_query = "SELECT COUNT(*) AS count FROM `users`";
+$result = mysqli_query($link, $check_empty_query);
+$row = mysqli_fetch_assoc($result);
 
 if ($row['count'] == 0) {
-    $default_password = password_hash("pass123", PASSWORD_DEFAULT); 
+    $default_password = password_hash("pass123", PASSWORD_DEFAULT);
     $insert_users_query = "
     INSERT INTO `users` (username, password, role) VALUES 
     ('admin', '$default_password', 'admin'), 
     ('user1', '$default_password', 'user'), 
     ('user2', '$default_password', 'user')";
-    if (!mysqli_query($link, $insert_users_query)) { 
-        die("Error inserting users: " . mysqli_error($link)); 
+    if (!mysqli_query($link, $insert_users_query)) {
+        die("Error inserting users: " . mysqli_error($link));
     }
 }
+
+
 
 // Function to handle and display messages
 function display_message() { 
