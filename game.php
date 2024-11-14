@@ -1,22 +1,102 @@
 <?php
+/*
+
+ -------------------------------------------------------------------------------
+ * All users have the same password "pass123".(admin, user1, user2) password is pass123.
+ * The passwords are hashed using the password_hash() function.
+ * Default users are inserted into the database with predefined usernames (admin, user1, user2) and a hashed password (pass123).
+ * The statistics table stores the total moves, outcome (win or reset), and total correct guesses for each game played, but the results will be shown after the player/user has finished the game.
+ *  The game resets when the user clicks the "Start New Game" button after inputting a 5-digit number or when the user guesses the correct number.
+ * The game provides feedback for each guess, indicating which digits are correct, misplaced, or wrong.
+ * 
+  * This PHP script handles the core logic for the number guessing game, including user authentication, session management, game initialization, 
+ * guess processing, feedback generation, statistics tracking, and storing game data in the MySQL database.
+ * It ensures that users are authenticated, and manages game flow, including handling guesses, tracking the number of attempts, and providing 
+ * feedback on each guess. Additionally, it logs statistics such as total moves, correct guesses, and game outcomes in a relational database.
+ * The script also provides functionality for starting new games, resetting the game mid-play, and logging out users.
+ * 
+ * Key Features:
+ * 1. Database Connection:
+ *    - Establishes a connection to the MySQL database using MySQLi, with the necessary credentials defined at the start.
+ *    - Ensures the existence of a database (`number_guessing_game`) and three essential tables (`users`, `guesses`, and `game_statistics`).
+ *    - Uses the `mysqli` class to interact with the database for storing guesses and game statistics.
+ *
+ * 2. User Authentication:
+ *    - The script uses PHP sessions to track whether a user is logged in or not. If a user is logged in, their user ID is stored in the session.
+ *    - Ensures that only logged-in users can interact with the game, preventing unauthorized access.
+ *    - Displays an error message and halts execution if a user is not logged in or the user ID is missing.
+ * 
+ * 3. Game Initialization:
+ *    - Initializes the game by setting a target number (5-digit random number) and tracking the number of attempts.
+ *    - Allows a new game to start or reset an ongoing game by submitting a POST request.
+ *    - Each game has a status tracked in the session (either `in_progress`, `won`, or `reset`).
+ *
+ * 4. Guess Processing:
+ *    - Accepts a user’s 5-digit guess and validates it. If the guess is valid (exactly 5 digits), it proceeds to compare the guess with the target number.
+ *    - For each guess, the script provides feedback for each digit: whether it is correct, misplaced, or wrong.
+ *    - Feedback is stored in the session and also inserted into the database to maintain a historical record of all guesses.
+ *    - If the guess is correct, the game is marked as completed, and the statistics are saved.
+ * 
+ * 5. Game Statistics:
+ *    - After each guess, feedback is generated for the user, indicating which digits are correct, misplaced, or incorrect.
+ *    - The feedback is saved in the database in JSON format for later retrieval.
+ * 
+ * 6. Saving Game Statistics:
+ *   - When a game is completed (either won or reset), the script saves the game statistics in the `game_statistics` table.
+ *    - The script tracks the game statistics, such as total moves, wins, and correct guesses, and stores these in the `game_statistics` table.
+ *    - It calculates and displays aggregated statistics like total users, total games, average moves per game, and total correct guesses.
+ *    - The script provides a function (`getStatistics()`) that retrieves aggregated statistics from the database, and these statistics are available for display.
+ * 
+ * 7. User-Specific Statistics:
+ *   - The script provides a function (`getUserStatistics()`) to retrieve user-specific statistics based on the user ID.
+ *   - User-specific statistics include the total games played, total wins, average moves per game, and win ratio.
+ *  - These statistics are displayed to the user, showing their performance in the game.
+ * 
+ * 8. Logging Out:
+ *   - The script allows users to log out by destroying the session and redirecting them to the index page.
+ *  - The logout functionality ensures that users can securely end their session and log out of the game.
+ * 
+ * 9. Error Handling:
+ *  - The script includes error handling for database operations, ensuring that any errors are logged to the PHP error log.
+ * - It displays error messages when there are issues with database queries or other critical operations.
+ *  
+ * 10. Security Considerations:
+ * - The script uses prepared statements to prevent SQL injection attacks when interacting with the database.
+ * - It ensures that user input is sanitized and validated before processing to prevent common security vulnerabilities.
+ * - The script uses PHP sessions to manage user authentication and track game state, ensuring that only authenticated users can play the game.
+ * - It follows best practices for secure coding, including validating user input, using prepared statements, and securely storing passwords.
+ * 
+ * 11. Additional Features:
+ * - The script provides a user-friendly interface for the number guessing game, displaying feedback for each guess and allowing users to start new games.
+ * - It includes a statistics section that shows aggregated statistics for all users and user-specific statistics for the logged-in user.
+ * - The script uses CSS for styling the game interface, providing a visually appealing and responsive design.
+ * - It includes animations for feedback messages and hover effects for buttons, enhancing the user experience.
+ * - The script ensures that users can easily navigate the game, view their game statistics, and log out securely.
+ * 
+ *
+
+ */
+?>
+
+<?php
 session_start();
 
 // Database credentials
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'number_guessing_game');
+define('DB_HOST', 'localhost'); // Database server
+define('DB_USER', 'root'); // Database username
+define('DB_PASS', ''); // Database password
+define('DB_NAME', 'number_guessing_game'); // Database name
 
 // Create a new connection to the database server (without specifying the database yet)
 $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS);
 
 // Check the connection
 if ($mysqli->connect_error) {
-    die("Connection failed: " . $mysqli->connect_error);
+    die("Connection failed: " . $mysqli->connect_error); // Exit if the connection fails
 }
 
 // Create the database if it doesn't exist
-$mysqli->query("CREATE DATABASE IF NOT EXISTS " . DB_NAME);
+$mysqli->query("CREATE DATABASE IF NOT EXISTS " . DB_NAME); // Create the database if it doesn't exist
 $mysqli->select_db(DB_NAME); // Switch to the created database
 
 // Create tables if they don't exist
@@ -52,13 +132,13 @@ foreach ($createTables as $sql) {
 // Ensure the user is logged in and the user_id is set
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
     if (isset($_SESSION['user_id'])) {
-        $userId = $_SESSION['user_id'];
+        $userId = $_SESSION['user_id']; // Get the user ID from the session
     } else {
         echo "User ID is missing in session.";
         exit();
     }
 } else {
-    echo "User not logged in.";
+    echo "User not logged in."; // Display an error message if the user is not logged in
     exit();
 }
 
@@ -96,17 +176,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guess']) && !empty($_
 
 // Reset game function without saving stats
 function initializeGame() {
-    $_SESSION['target_number'] = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT);
-    $_SESSION['attempts'] = 0;
-    $_SESSION['guesses'] = [];
-    $_SESSION['correct_guess'] = false;
-    $_SESSION['game_status'] = 'in_progress';
-    session_regenerate_id(true);
+    $_SESSION['target_number'] = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT); // Generate a new target number
+    $_SESSION['attempts'] = 0; // Initialize attempts
+    $_SESSION['guesses'] = []; // Initialize guesses
+    $_SESSION['correct_guess'] = false; // Reset correct guess flag
+    $_SESSION['game_status'] = 'in_progress'; // Set the game status to in progress
+    session_regenerate_id(true); // Regenerate the session ID for security
 }
-
-
-
-
 
 
 // Handle the user's guess and provide feedback
@@ -121,9 +197,9 @@ function processGuess($guess) {
         if ($guess[$i] === $target[$i]) {
             $feedback[$i] = "correct";
         } elseif (strpos($target, $guess[$i]) !== false) {
-            $feedback[$i] = "misplaced";
+            $feedback[$i] = "misplaced"; // Check if the digit is in the target number but in the wrong position
         } else {
-            $feedback[$i] = "wrong";
+            $feedback[$i] = "wrong"; // If the digit is not in the target number
         }
     }
 
@@ -140,10 +216,10 @@ function processGuess($guess) {
 
     // Store the guess in the database
     $feedback_json = json_encode($feedback);
-    $stmt = $mysqli->prepare("INSERT INTO guesses (guess, feedback) VALUES (?, ?)");
+    $stmt = $mysqli->prepare("INSERT INTO guesses (guess, feedback) VALUES (?, ?)"); // Prepare the SQL statement
     $stmt->bind_param("ss", $guess, $feedback_json);
     if (!$stmt->execute()) {
-        error_log("Database insert error: " . $stmt->error);
+        error_log("Database insert error: " . $stmt->error); // Log any errors
     }
     $stmt->close();
 }
@@ -183,44 +259,45 @@ if (isset($_POST['logout'])) {
     exit();
 }
 
+// Function to get aggregated statistics
 function getStatistics() {
     global $mysqli;
 
-    $total_users = $total_games = $average_moves = $total_correct = 0;
+    $total_users = $total_games = $average_moves = $total_correct = 0; // Initialize variables
     
     // Check total users
-    $result = $mysqli->query("SELECT COUNT(*) AS total_users FROM users");
+    $result = $mysqli->query("SELECT COUNT(*) AS total_users FROM users"); // Query to get the total number of users
     if ($result) {
-        $total_users = $result->fetch_assoc()['total_users'];
+        $total_users = $result->fetch_assoc()['total_users']; // Get the total number of users
     } else {
-        error_log("Error in total users query: " . $mysqli->error);
+        error_log("Error in total users query: " . $mysqli->error);     // Log an error if there is an issue with the query
         echo "Error in fetching total users.";
     }
 
     // Check total games
-    $result = $mysqli->query("SELECT COUNT(*) AS total_games FROM guesses");
+    $result = $mysqli->query("SELECT COUNT(*) AS total_games FROM guesses"); // Query to get the total number of games
     if ($result) {
-        $total_games = $result->fetch_assoc()['total_games'];
+        $total_games = $result->fetch_assoc()['total_games'];   // Get the total number of games
     } else {
-        error_log("Error in total games query: " . $mysqli->error);
+        error_log("Error in total games query: " . $mysqli->error); // Log an error if there is an issue with the query
     }
 
     // Average moves per game
-    $result = $mysqli->query("SELECT AVG(total_moves) AS average_moves FROM game_statistics");
+    $result = $mysqli->query("SELECT AVG(total_moves) AS average_moves FROM game_statistics"); // Query to get the average moves per game
     if ($result) {
-        $average_moves = $result->fetch_assoc()['average_moves'];
+        $average_moves = $result->fetch_assoc()['average_moves']; // Get the average moves per game
     } else {
-        error_log("Error in average moves query: " . $mysqli->error);
+        error_log("Error in average moves query: " . $mysqli->error); // Log an error if there is an issue with the query
     }
 
     // Total correct guesses
-    $result = $mysqli->query("SELECT COUNT(*) AS total_correct FROM guesses WHERE feedback LIKE '%correct%'");
+    $result = $mysqli->query("SELECT COUNT(*) AS total_correct FROM guesses WHERE feedback LIKE '%correct%'"); // Query to get the total number of correct guesses
     if ($result) {
-        $total_correct = $result->fetch_assoc()['total_correct'];
+        $total_correct = $result->fetch_assoc()['total_correct']; // Get the total number of correct guesses
     } else {
-        error_log("Error in total correct guesses query: " . $mysqli->error);
+        error_log("Error in total correct guesses query: " . $mysqli->error); // Log an error if there is an issue with the query
     }
-
+// Return the aggregated statistics
     return [
         'total_users' => $total_users,
         'total_games' => $total_games,
@@ -242,17 +319,17 @@ $stats = getStatistics();
 // Function to generate feedback for the guess
 function generateFeedback($guess) {
     $feedback = [];
-    $target = str_split($_SESSION['target_number']);
+    $target = str_split($_SESSION['target_number']); // Convert the target number to an array of digits
     $userGuess = str_split($guess);
 
     // Flags to track already checked digits
-    $targetChecked = array_fill(0, 5, false);
-    $guessChecked = array_fill(0, 5, false);
+    $targetChecked = array_fill(0, 5, false); // Initialize an array with 5 elements set to false
+    $guessChecked = array_fill(0, 5, false); // Initialize an array with 5 elements set to false
 
     // First pass: Check for correct positions
     for ($i = 0; $i < 5; $i++) {
         if ($userGuess[$i] == $target[$i]) {
-            $feedback[] = "Digit $userGuess[$i] is in the correct position";
+            $feedback[] = "Digit $userGuess[$i] is in the correct position"; // Provide feedback for correct position
             $targetChecked[$i] = true; // Mark this digit as checked
             $guessChecked[$i] = true;  // Mark this digit as checked
         }
@@ -263,7 +340,7 @@ function generateFeedback($guess) {
         if (!$guessChecked[$i]) { // Skip already checked digits
             for ($j = 0; $j < 5; $j++) {
                 if (!$targetChecked[$j] && $userGuess[$i] == $target[$j]) {
-                    $feedback[] = "Digit $userGuess[$i] is in the number but in the wrong position";
+                    $feedback[] = "Digit $userGuess[$i] is in the number but in the wrong position"; // Provide feedback for misplaced digit
                     $targetChecked[$j] = true; // Mark this target digit as checked
                     break;
                 }
@@ -274,12 +351,12 @@ function generateFeedback($guess) {
     // Final pass: Check for digits that are not in the number
     for ($i = 0; $i < 5; $i++) {
         if (!$guessChecked[$i]) {
-            $feedback[] = "Digit $userGuess[$i] is not in the number";
+            $feedback[] = "Digit $userGuess[$i] is not in the number"; // Provide feedback for digit not in the number
         }
     }
 
     // Return the feedback as a string
-    return implode(", ", $feedback);
+    return implode(", ", $feedback); // Combine the feedback array into a string
 }
 // Handle logout
 if (isset($_POST['logout'])) {
@@ -294,11 +371,11 @@ function saveGuessToDatabase($guess, $feedback) {
     global $mysqli;
 
     $feedback_json = json_encode($feedback);
-    $stmt = $mysqli->prepare("INSERT INTO guesses (guess, feedback) VALUES (?, ?)");
-    $stmt->bind_param("ss", $guess, $feedback_json);
+    $stmt = $mysqli->prepare("INSERT INTO guesses (guess, feedback) VALUES (?, ?)"); // Prepare the SQL statement
+    $stmt->bind_param("ss", $guess, $feedback_json); // Bind the parameters
 
     if (!$stmt->execute()) {
-        error_log("Database insert error: " . $stmt->error);
+        error_log("Database insert error: " . $stmt->error); // Log any errors
     }
 
     $stmt->close();
@@ -307,19 +384,19 @@ function saveGuessToDatabase($guess, $feedback) {
 // Function to save game statistics
 function saveGameStatistics() {
     global $mysqli;
-    $userId = $_SESSION['user_id'];
-    $totalMoves = $_SESSION['attempts'];
-    $outcome = $_SESSION['correct_guess'] ? 'win' : 'reset';
+    $userId = $_SESSION['user_id']; // Get the user ID from the session
+    $totalMoves = $_SESSION['attempts']; // Get the total number of moves
+    $outcome = $_SESSION['correct_guess'] ? 'win' : 'reset'; // Determine the game outcome
 
     // Only save if the game was won or lost, not if reset mid-game
     if ($outcome !== 'reset') {
-        $totalCorrectGuesses = $_SESSION['correct_guess'] ? 1 : 0;
+        $totalCorrectGuesses = $_SESSION['correct_guess'] ? 1 : 0; // Track the total correct guesses
 
-        $stmt = $mysqli->prepare("INSERT INTO game_statistics (user_id, total_moves, outcome, total_correct_guesses) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("iisi", $userId, $totalMoves, $outcome, $totalCorrectGuesses);
+        $stmt = $mysqli->prepare("INSERT INTO game_statistics (user_id, total_moves, outcome, total_correct_guesses) VALUES (?, ?, ?, ?)"); // Prepare the SQL statement
+        $stmt->bind_param("iisi", $userId, $totalMoves, $outcome, $totalCorrectGuesses); // Bind the parameters
 
         if (!$stmt->execute()) {
-            error_log("Database insert error (statistics): " . $stmt->error);
+            error_log("Database insert error (statistics): " . $stmt->error); // Log any errors
         }
         $stmt->close();
     }
@@ -330,8 +407,8 @@ function saveGameStatistics() {
 function recordGameStatistics($userId, $totalMoves, $outcome, $correctGuesses) {
     global $mysqli;
 
-    $stmt = $mysqli->prepare("INSERT INTO game_statistics (user_id, total_moves, outcome, total_correct_guesses) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("iisi", $userId, $totalMoves, $outcome, $correctGuesses);
+    $stmt = $mysqli->prepare("INSERT INTO game_statistics (user_id, total_moves, outcome, total_correct_guesses) VALUES (?, ?, ?, ?)"); // Prepare the SQL statement
+    $stmt->bind_param("iisi", $userId, $totalMoves, $outcome, $correctGuesses); // Bind the parameters
     $stmt->execute();
     $stmt->close();
 }
@@ -341,8 +418,8 @@ function getUserStatistics($userId) {
     global $mysqli;
 
      // Total users
-     $stmt = $mysqli->query("SELECT COUNT(*) AS total_users FROM users");
-     $total_users = $stmt->fetch_assoc()['total_users'] ?? 0;
+     $stmt = $mysqli->query("SELECT COUNT(*) AS total_users FROM users"); // Query to get the total number of users
+     $total_users = $stmt->fetch_assoc()['total_users'] ?? 0; // Get the total number of users
 
     // Total games played by the user
     $stmt = $mysqli->prepare("SELECT COUNT(*) AS total_games FROM game_statistics WHERE user_id = ?");
@@ -367,7 +444,7 @@ function getUserStatistics($userId) {
     $result = $stmt->get_result();
     $average_moves = $result->fetch_assoc()['average_moves'] ?? 0;
     $stmt->close();
-
+// Calculate the win ratio
     return [
         'total_users' => $total_users,
         'total_games' => $total_games,
@@ -530,6 +607,8 @@ $mysqli->close();
                 transform: scale(1); /* Scales to normal size */
             }
         }
+
+        /* Styling for statistics section*/
         .statistics {
     border: 1px solid #ddd;
     padding: 20px;
@@ -605,7 +684,7 @@ $mysqli->close();
                 <button type="submit" class="btn" name="new_game" value="Start New Game">Start New Game</button>
             </form>
         <?php endif; ?>
-
+<!-- Display feedback for each guess -->
         <div class="feedback-section">
             <h2>Your Guesses</h2>
             <ul>
@@ -627,7 +706,7 @@ $mysqli->close();
                 <?php endif; ?>
             </ul>
         </div>
-
+<!-- Display statistics -->
         <div class="statistics">
     <h2>Total Users</h2>
     <p><strong>Total Users:</strong> <?php echo isset($stats['total_users']) ? $stats['total_users'] : 0; ?></p>
@@ -641,7 +720,7 @@ $mysqli->close();
     </div>
 </div>
 
-
+<!-- Log out button -->
 
 
         <form method="post">

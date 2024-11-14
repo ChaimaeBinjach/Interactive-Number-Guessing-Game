@@ -1,4 +1,51 @@
 <?php
+/*
+ * 
+ -------------------------------------------------------------------------------
+ * all the users have the same password "pass123".
+ * The passwords are hashed using the password_hash() function.
+ * The default users are inserted into the database with predefined usernames (admin, user1, user2) and a hashed password (pass123).
+This PHP file serves as the core logic for user authentication, registration, and statistics management for a number guessing game.
+ It establishes a connection to a MySQL database and ensures that the necessary database and tables are created if they do not exist.
+  
+ Key Features:
+    1. Database Connection: 
+   - The script connects to a MySQL database using MySQLi and creates the database (`number_guessing_game`) and a `users` table if they don't exist.
+   - It handles potential database errors and ensures the necessary structure is in place before proceeding with user operations.
+ 
+    2. User Management:
+    - Login: Handles user login using a secure process with prepared statements to prevent SQL injection. 
+    It verifies the user's credentials by comparing the hashed password stored in the database.
+    - Registration: Allows new users to register with a username and password. Passwords are hashed using PHP's `password_hash()` function for secure storage.
+    The script also checks if the username already exists in the database to prevent duplicate registrations.
+    - Session Management: Uses PHP's session functionality to track whether a user is logged in or not. Session variables are set to store user information (username, user ID, role).
+ 
+    3. Default Users:
+    - If the users table is empty (e.g., on a fresh setup), default users are inserted into the database with predefined usernames (`admin`, `user1`, `user2`) and a hashed password (`pass123`).
+ 
+    4. Error Handling:
+    - The script includes error handling for database connections, user authentication issues, and session handling.
+    - Error messages are displayed to the user in case of invalid input (e.g., incorrect password, username not found).
+ 
+    5. User Statistics:
+    - Displays user-specific game statistics such as games played, average moves per game, and total wins, by querying the `game_statistics` table.
+    - The statistics are displayed when a user is logged in, providing a personalized experience based on the user's activity.
+
+    6. Frontend UI:
+    - The script dynamically generates HTML content to show either the login form or a welcome message with options to play the game and log out, depending on the user's session status.
+    - A registration form is hidden by default and can be toggled for users who do not have an account yet.
+ 
+    7. Security:
+    - Passwords are never stored in plain text. Instead, they are hashed using the `password_hash()` function, and the login validation is done using `password_verify()`.
+    - SQL injection is mitigated by using prepared statements for all database queries involving user input.
+
+ The primary purpose of this file is to handle the user interaction and authentication for the game, ensuring secure login and registration, 
+ as well as managing user sessions and displaying personalized game statistics.
+ */
+?>
+
+
+<?php
 session_start(); // Start a new session or resume the existing session
 
 // Database connection parameters
@@ -126,15 +173,15 @@ if (isset($_POST['register'])) {
         $result = mysqli_stmt_get_result($stmt); // Get the result
 
         if (mysqli_num_rows($result) > 0) {
-            $_SESSION['error'] = "Username already exists!";
+            $_SESSION['error'] = "Username already exists!"; // Display an error message if the username already exists
         } else {
             // Insert the new user
-            $stmt = mysqli_prepare($link, "INSERT INTO users (username, password, role) VALUES (?, ?, 'user')");
-            mysqli_stmt_bind_param($stmt, "ss", $username, $hashed_password);
+            $stmt = mysqli_prepare($link, "INSERT INTO users (username, password, role) VALUES (?, ?, 'user')"); // Insert the new user
+            mysqli_stmt_bind_param($stmt, "ss", $username, $hashed_password); // Bind the parameters
             if (mysqli_stmt_execute($stmt)) {
-                $_SESSION['message'] = "Registration successful. You can now log in.";
+                $_SESSION['message'] = "Registration successful. You can now log in."; // Display a success message if the registration is successful
             } else {
-                $_SESSION['error'] = "Error registering user: " . mysqli_error($link);
+                $_SESSION['error'] = "Error registering user: " . mysqli_error($link); // Display an error message if there is an error in registering the user
             }
         }
     }
@@ -143,30 +190,30 @@ function displayUserStatistics($userId) {
     global $mysqli;
 
     // Retrieve user statistics
-    $stmt = $mysqli->prepare("SELECT COUNT(*) AS games_played, AVG(total_moves) AS avg_moves, SUM(total_correct_guesses) AS wins FROM game_statistics WHERE user_id = ?");
-    $stmt->bind_param("i", $userId);
+    $stmt = $mysqli->prepare("SELECT COUNT(*) AS games_played, AVG(total_moves) AS avg_moves, SUM(total_correct_guesses) AS wins FROM game_statistics WHERE user_id = ?"); // Query to retrieve user statistics
+    $stmt->bind_param("i", $userId); // Bind the parameters
     $stmt->execute();
-    $result = $stmt->get_result();
+    $result = $stmt->get_result(); // Get the result
     $stats = $result->fetch_assoc();
-    $stmt->close();
+    $stmt->close(); // Close the statement
 
-    echo "<h3>Game Statistics:</h3>";
-    echo "<p>Games Played: " . $stats['games_played'] . "</p>";
-    echo "<p>Average Moves: " . round($stats['avg_moves'], 2) . "</p>";
-    echo "<p>Total Wins: " . $stats['wins'] . "</p>";
+    echo "<h3>Game Statistics:</h3>"; // Display the game statistics
+    echo "<p>Games Played: " . $stats['games_played'] . "</p>"; // Display the number of games played
+    echo "<p>Average Moves: " . round($stats['avg_moves'], 2) . "</p>"; // Display the average moves per game
+    echo "<p>Total Wins: " . $stats['wins'] . "</p>"; // Display the total wins
 }
 
 
 // Handle logout
 if (isset($_GET['logout'])) { 
     session_destroy(); 
-    header("Location: index.php"); 
+    header("Location: index.php");  // Redirect to the login page after logging out
     exit(); 
 }
 
 ?>
 
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
     <meta charset="UTF-8"> 
@@ -191,7 +238,7 @@ if (isset($_GET['logout'])) {
             margin: 0;
             padding: 20px;
         }
-
+/* Styling for the container*/
         .container {
             background-color: #fff;
             padding: 40px;
