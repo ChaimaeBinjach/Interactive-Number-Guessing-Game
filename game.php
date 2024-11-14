@@ -186,21 +186,40 @@ if (isset($_POST['logout'])) {
 function getStatistics() {
     global $mysqli;
 
-    // Get the total number of users
+    $total_users = $total_games = $average_moves = $total_correct = 0;
+    
+    // Check total users
     $result = $mysqli->query("SELECT COUNT(*) AS total_users FROM users");
-    $total_users = $result->fetch_assoc()['total_users'];
+    if ($result) {
+        $total_users = $result->fetch_assoc()['total_users'];
+    } else {
+        error_log("Error in total users query: " . $mysqli->error);
+        echo "Error in fetching total users.";
+    }
 
-    // Get the total number of games played
+    // Check total games
     $result = $mysqli->query("SELECT COUNT(*) AS total_games FROM guesses");
-    $total_games = $result->fetch_assoc()['total_games'];
+    if ($result) {
+        $total_games = $result->fetch_assoc()['total_games'];
+    } else {
+        error_log("Error in total games query: " . $mysqli->error);
+    }
 
-    // Get the average moves per game
+    // Average moves per game
     $result = $mysqli->query("SELECT AVG(total_moves) AS average_moves FROM game_statistics");
-    $average_moves = $result->fetch_assoc()['average_moves'];
+    if ($result) {
+        $average_moves = $result->fetch_assoc()['average_moves'];
+    } else {
+        error_log("Error in average moves query: " . $mysqli->error);
+    }
 
-    // Get the total correct guesses
+    // Total correct guesses
     $result = $mysqli->query("SELECT COUNT(*) AS total_correct FROM guesses WHERE feedback LIKE '%correct%'");
-    $total_correct = $result->fetch_assoc()['total_correct'];
+    if ($result) {
+        $total_correct = $result->fetch_assoc()['total_correct'];
+    } else {
+        error_log("Error in total correct guesses query: " . $mysqli->error);
+    }
 
     return [
         'total_users' => $total_users,
@@ -209,6 +228,11 @@ function getStatistics() {
         'total_correct' => $total_correct,
     ];
 }
+/*
+$stats = getStatistics();
+echo "Total Users: " . $stats['total_users'];
+*/
+
 
 
 
@@ -316,6 +340,10 @@ $stats = getStatistics();
 function getUserStatistics($userId) {
     global $mysqli;
 
+     // Total users
+     $stmt = $mysqli->query("SELECT COUNT(*) AS total_users FROM users");
+     $total_users = $stmt->fetch_assoc()['total_users'] ?? 0;
+
     // Total games played by the user
     $stmt = $mysqli->prepare("SELECT COUNT(*) AS total_games FROM game_statistics WHERE user_id = ?");
     $stmt->bind_param("i", $userId);
@@ -341,6 +369,7 @@ function getUserStatistics($userId) {
     $stmt->close();
 
     return [
+        'total_users' => $total_users,
         'total_games' => $total_games,
         'total_wins' => $total_wins,
         'average_moves' => round($average_moves, 2),
@@ -379,7 +408,7 @@ $mysqli->close();
             display: flex; /* Enables flexbox layout for centering */
             justify-content: center; /* Horizontally centers content */
             align-items: center; /* Vertically centers content */
-            min-height: 100vh; /* Sets minimum height to full viewport */
+            min-height: 150vh; /* Sets minimum height to full viewport */
             background: linear-gradient(135deg, #a8e0ff 0%, #e0e7ff 100%); /* Applies a gradient background */
             font-family: 'Arial', sans-serif; /* Sets the font */
             color: #2d3748; /* Base color for text */
@@ -388,7 +417,7 @@ $mysqli->close();
             background: #ffffff; /* Background color for the main container */
             border-radius: 20px; /* Rounds container corners */
             padding: 50px; /* Sets padding around container content */
-            max-width: 700px; /* Maximum width for the container */
+            max-width: 800px; /* Maximum width for the container */
             width: 150%; /* Container width at 90% of its parent */
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Adds shadow effect */
             text-align: center; /* Centers text inside the container */
@@ -407,7 +436,7 @@ $mysqli->close();
             display: flex; /* Flex container for form elements */
             flex-direction: column; /* Arranges children in a column */
             align-items: center; /* Centers form elements */
-            gap: 20px; /* Space between form elements */
+            gap: 25px; /* Space between form elements */
         }
         .input-group {
             display: flex; /* Flex container for input fields */
@@ -501,6 +530,56 @@ $mysqli->close();
                 transform: scale(1); /* Scales to normal size */
             }
         }
+        .statistics {
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-family: 'Arial', sans-serif;
+}
+
+.statistics h2 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    color: #333;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.statistics p {
+    font-size: 1.1rem;
+    color: #555;
+    margin: 5px 0;
+}
+
+.statistics p strong {
+    font-weight: bold;
+    color: #333;
+}
+
+.statistics .total-users {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 20px;
+}
+
+.statistics .game-statistics {
+    background-color: #f0f8ff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.statistics .game-statistics p {
+    margin-left: 20px;
+}
+
+
     </style>
 </head>
 <body>
@@ -550,12 +629,19 @@ $mysqli->close();
         </div>
 
         <div class="statistics">
-    <h2>Game Statistics</h2>
-    <p>Total Games Played: <?php echo $stats['total_games']; ?></p>
-    <p>Total Wins: <?php echo $stats['total_wins']; ?></p>
-    <p>Average Moves per Game: <?php echo $stats['average_moves']; ?></p>
-    <p>Win Ratio: <?php echo $stats['win_ratio']; ?>%</p>
+    <h2>Total Users</h2>
+    <p><strong>Total Users:</strong> <?php echo isset($stats['total_users']) ? $stats['total_users'] : 0; ?></p>
+
+    <div class="game-statistics">
+        <h2>Your Game Statistics</h2>
+        <p><strong>Total Games Played:</strong> <?php echo isset($stats['total_games']) ? $stats['total_games'] : 0; ?></p>
+        <p><strong>Total Wins:</strong> <?php echo isset($stats['total_wins']) ? $stats['total_wins'] : 0; ?></p>
+        <p><strong>Average Moves per Game:</strong> <?php echo isset($stats['average_moves']) ? $stats['average_moves'] : 0; ?></p>
+        <p><strong>Win Ratio:</strong> <?php echo isset($stats['win_ratio']) ? $stats['win_ratio'] : 0; ?>%</p>
+    </div>
 </div>
+
+
 
 
         <form method="post">

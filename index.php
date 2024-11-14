@@ -2,29 +2,29 @@
 session_start(); // Start a new session or resume the existing session
 
 // Database connection parameters
-$host = 'localhost';
-$user = 'root';
-$password = '';
-$dbname = 'number_guessing_game';
+$host = 'localhost'; // Define the hostname for the database server
+$user = 'root'; //Define the username for the database server
+$password = ''; // Define the password for the database server
+$dbname = 'number_guessing_game'; // Define the database name
 
 // Create a connection to the database server (without specifying the database yet)
-$link = mysqli_connect($host, $user, $password);
+$link = mysqli_connect($host, $user, $password); // Create a new connection to the MySQL database server
 
 // Check connection
 if (!$link) {
-    die("Connection failed: " . mysqli_connect_error());
+    die("Connection failed: " . mysqli_connect_error());// Check if the connection to the database server is successful
 }
 
 // Create the database if it doesn't exist
-$db_create_query = "CREATE DATABASE IF NOT EXISTS $dbname";
+$db_create_query = "CREATE DATABASE IF NOT EXISTS $dbname"; // Create a new database if it doesn't exist
 if (mysqli_query($link, $db_create_query)) {
-    mysqli_select_db($link, $dbname);
+    mysqli_select_db($link, $dbname); // Select the database to work with
 } else {
-    die("Error creating database: " . mysqli_error($link));
+    die("Error creating database: " . mysqli_error($link));  // Check if the database creation is successful
 }
 
 // Now that the database exists, connect to it
-$link = mysqli_connect($host, $user, $password, $dbname);
+$link = mysqli_connect($host, $user, $password, $dbname); // Create a new connection to the MySQL database server
 
 // Create the users table if it doesn't exist
 $table_create_query = "
@@ -35,23 +35,23 @@ CREATE TABLE IF NOT EXISTS `users` (
     role ENUM('admin', 'user') DEFAULT 'user'
 )";
 if (!mysqli_query($link, $table_create_query)) {
-    die("Error creating table: " . mysqli_error($link));
+    die("Error creating table: " . mysqli_error($link)); // Check if the table creation is successful
 }
 
 // Insert default users if the table is empty
-$check_empty_query = "SELECT COUNT(*) AS count FROM `users`";
-$result = mysqli_query($link, $check_empty_query);
-$row = mysqli_fetch_assoc($result);
+$check_empty_query = "SELECT COUNT(*) AS count FROM `users`"; // Check if the users table is empty
+$result = mysqli_query($link, $check_empty_query); // Execute the query
+$row = mysqli_fetch_assoc($result); // Fetch the result as an associative array
 
 if ($row['count'] == 0) {
-    $default_password = password_hash("pass123", PASSWORD_DEFAULT);
+    $default_password = password_hash("pass123", PASSWORD_DEFAULT); // Hash the default password
     $insert_users_query = "
     INSERT INTO `users` (username, password, role) VALUES 
     ('admin', '$default_password', 'admin'), 
     ('user1', '$default_password', 'user'), 
     ('user2', '$default_password', 'user')";
     if (!mysqli_query($link, $insert_users_query)) {
-        die("Error inserting users: " . mysqli_error($link));
+        die("Error inserting users: " . mysqli_error($link)); // Check if the user insertion is successful
     }
 }
 
@@ -60,47 +60,47 @@ if ($row['count'] == 0) {
 // Function to handle and display messages
 function display_message() { 
     if (isset($_SESSION['message'])) { 
-        echo "<p class='message'>{$_SESSION['message']}</p>"; 
-        unset($_SESSION['message']); 
+        echo "<p class='message'>{$_SESSION['message']}</p>";  // Display the message
+        unset($_SESSION['message']);  // Unset the message
     }
     if (isset($_SESSION['error'])) { 
-        echo "<p class='error'>{$_SESSION['error']}</p>"; 
+        echo "<p class='error'>{$_SESSION['error']}</p>"; // Display the error
         unset($_SESSION['error']); 
     }
 }
 
 // Handle login logic with prepared statements
 if (isset($_POST['login'])) { 
-    $username = trim($_POST['username']); 
-    $password = $_POST['password']; 
+    $username = trim($_POST['username']); // Get the username and remove whitespace
+    $password = $_POST['password']; // Get the password
 
-    $stmt = mysqli_prepare($link, "SELECT * FROM users WHERE username = ?"); 
-    mysqli_stmt_bind_param($stmt, "s", $username); 
+    $stmt = mysqli_prepare($link, "SELECT * FROM users WHERE username = ?"); // Prepare the SQL query
+    mysqli_stmt_bind_param($stmt, "s", $username); // Bind the parameters
     mysqli_stmt_execute($stmt); 
-    $result = mysqli_stmt_get_result($stmt); 
+    $result = mysqli_stmt_get_result($stmt); // Get the result
 
     if (mysqli_num_rows($result) == 1) { 
         $user = mysqli_fetch_assoc($result); 
         if (password_verify($password, $user['password'])) { 
             // Set session variables
-            $_SESSION['logged_in'] = true; 
-            $_SESSION['username'] = $username; 
-            $_SESSION['role'] = $user['role'];
+            $_SESSION['logged_in'] = true; // Set the logged_in session variable to true
+            $_SESSION['username'] = $username; // Set the username in the session
+            $_SESSION['role'] = $user['role']; //   this line sets the role in the session
             $_SESSION['user_id'] = $user['id']; // This line sets the user_id in the session
             $_SESSION['message'] = "Welcome, $username!"; 
         } else {
-            $_SESSION['error'] = "Incorrect password!"; 
+            $_SESSION['error'] = "Incorrect password!"; //Display an error message if the password is incorrect
         }
     } else {
-        $_SESSION['error'] = "Username does not exist!"; 
+        $_SESSION['error'] = "Username does not exist!"; // Display an error message if the username does not exist
     }
     
 }
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
     if (isset($_SESSION['user_id'])) {
-        $userId = $_SESSION['user_id'];
+        $userId = $_SESSION['user_id']; // Get the user ID from the session
     } else {
-        echo "User ID is missing in session.";
+        echo "User ID is missing in session."; // Display an error message if the user ID is missing
         exit();
     }
 }
@@ -108,22 +108,22 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
 
 // Handle registration logic
 if (isset($_POST['register'])) {
-    $username = trim($_POST['new_username']);
-    $password = $_POST['new_password'];
-    $confirm_password = $_POST['confirm_password'];
+    $username = trim($_POST['new_username']); // Get the new username and remove whitespace
+    $password = $_POST['new_password']; //Define the new password
+    $confirm_password = $_POST['confirm_password']; // Define the confirm password
 
     // Check if passwords match
     if ($password !== $confirm_password) {
-        $_SESSION['error'] = "Passwords do not match!";
+        $_SESSION['error'] = "Passwords do not match!"; // Display an error message if the passwords do not match
     } else {
         // Hash password before storing
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT); // Hash the password
 
         // Check if username already exists
-        $stmt = mysqli_prepare($link, "SELECT * FROM users WHERE username = ?");
-        mysqli_stmt_bind_param($stmt, "s", $username);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+        $stmt = mysqli_prepare($link, "SELECT * FROM users WHERE username = ?"); //Query to check if the username already exists
+        mysqli_stmt_bind_param($stmt, "s", $username); // Bind the parameters
+        mysqli_stmt_execute($stmt); // Execute the query
+        $result = mysqli_stmt_get_result($stmt); // Get the result
 
         if (mysqli_num_rows($result) > 0) {
             $_SESSION['error'] = "Username already exists!";
