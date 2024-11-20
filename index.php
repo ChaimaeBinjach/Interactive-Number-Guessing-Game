@@ -203,6 +203,128 @@ function displayUserStatistics($userId) {
     echo "<p>Total Wins: " . $stats['wins'] . "</p>"; // Display the total wins
 }
 
+///
+// Create the `news` table if it doesn't exist
+$news_table_query = "
+CREATE TABLE IF NOT EXISTS `news` (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+)";
+if (!mysqli_query($link, $news_table_query)) {
+    die("Error creating news table: " . mysqli_error($link));
+}
+
+// Handle news creation
+if (isset($_POST['create_news'])) {
+    if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
+        $title = trim($_POST['news_title']);
+        $content = trim($_POST['news_content']);
+        $user_id = $_SESSION['user_id'];
+
+        if (!empty($title) && !empty($content)) {
+            $stmt = mysqli_prepare($link, "INSERT INTO news (user_id, title, content) VALUES (?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "iss", $user_id, $title, $content);
+            if (mysqli_stmt_execute($stmt)) {
+                $_SESSION['message'] = "News created successfully!";
+            } else {
+                $_SESSION['error'] = "Error creating news: " . mysqli_error($link);
+            }
+        } else {
+            $_SESSION['error'] = "Title and content cannot be empty.";
+        }
+    } else {
+        $_SESSION['error'] = "You must be logged in to create news.";
+    }
+}
+
+// Handle news update
+if (isset($_POST['update_news'])) {
+    $news_id = $_POST['news_id'];
+    $title = trim($_POST['news_title']);
+    $content = trim($_POST['news_content']);
+    $user_id = $_SESSION['user_id'];
+    $role = $_SESSION['role'];
+
+    // Allow only the creator or admin to update
+    $check_query = $role === 'admin' 
+        ? "SELECT * FROM news WHERE id = ?"
+        : "SELECT * FROM news WHERE id = ? AND user_id = ?";
+    
+    $stmt = mysqli_prepare($link, $check_query);
+    if ($role === 'admin') {
+        mysqli_stmt_bind_param($stmt, "i", $news_id);
+    } else {
+        mysqli_stmt_bind_param($stmt, "ii", $news_id, $user_id);
+    }
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+
+    if (mysqli_num_rows($result) > 0) {
+        $update_query = "UPDATE news SET title = ?, content = ? WHERE id = ?";
+        $stmt = mysqli_prepare($link, $update_query);
+        mysqli_stmt_bind_param($stmt, "ssi", $title, $content, $news_id);
+        if (mysqli_stmt_execute($stmt)) {
+            $_SESSION['message'] = "News updated successfully!";
+        } else {
+            $_SESSION['error'] = "Error updating news: " . mysqli_error($link);
+        }
+    } else {
+        $_SESSION['error'] = "You don't have permission to update this news.";
+    }
+}
+
+if (isset($_POST['delete_news'])) {
+    $news_id = intval($_POST['news_id']);
+    $user_id = $_SESSION['user_id'];
+    $role = $_SESSION['role'];
+
+    // Check if the user has permission to delete
+    $query = ($role === 'admin')
+        ? "SELECT * FROM news WHERE id = ?" // Admin can delete any post
+        : "SELECT * FROM news WHERE id = ? AND user_id = ?"; // Users can delete only their posts
+    
+    $stmt = mysqli_prepare($link, $query); // Use $link here
+    if ($role === 'admin') {
+        mysqli_stmt_bind_param($stmt, "i", $news_id);
+    } else {
+        mysqli_stmt_bind_param($stmt, "ii", $news_id, $user_id);
+    }
+
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+
+    if ($result->num_rows > 0) {
+        // User is authorized to delete
+        $delete_query = "DELETE FROM news WHERE id = ?";
+        $stmt = mysqli_prepare($link, $delete_query); // Use $link here
+        mysqli_stmt_bind_param($stmt, "i", $news_id);
+        if (mysqli_stmt_execute($stmt)) {
+            $_SESSION['message'] = "News deleted successfully!";
+        } else {
+            $_SESSION['error'] = "Error deleting news: " . mysqli_error($link);
+        }
+    } else {
+        $_SESSION['error'] = "You don't have permission to delete this news.";
+    }
+    mysqli_stmt_close($stmt);
+    header("Location: index.php");
+    exit();
+}
+
+
+
+// Display news entries
+function display_news($link) {
+    $query = "SELECT news.*, users.username FROM news JOIN users ON news.user_id = users.id ORDER BY news.created_at DESC";
+    $result = mysqli_query($link, $query);
+
+    
+}
+
 
 // Handle logout
 if (isset($_GET['logout'])) { 
@@ -321,6 +443,157 @@ if (isset($_GET['logout'])) {
     background-color: #218838;
 }
 
+/* News section styling */* News Section Styling */
+        .news-container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            margin-top: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .news-container h3 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        /* Individual News Item Styling */
+        .news-item {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .news-item:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .news-item h4 {
+            font-size: 1.8rem;
+            color: #4e4e4e;
+            margin-bottom: 10px;
+            font-weight: 700;
+            transition: color 0.3s;
+        }
+
+        .news-item h4:hover {
+            color: #28a745;
+        }
+
+        .news-item p {
+            font-size: 1.1rem;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .news-item small {
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        /* Buttons for Update and Delete */
+        .news-item .update-delete-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-start;
+        }
+
+        .news-item .update-delete-buttons button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .news-item .update-delete-buttons button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+
+        .news-item .update-delete-buttons button.delete {
+            background-color: #dc3545;
+        }
+
+        .news-item .update-delete-buttons button.delete:hover {
+            background-color: #c82333;
+        }
+
+        /* News Creation Form Styling */
+        form input[type="text"], form textarea {
+            width: 100%;
+            padding: 15px;
+            margin: 12px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1.1rem;
+            transition: border 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        form input[type="text"]:focus, form textarea:focus {
+            border-color: #28a745;
+            outline: none;
+        }
+
+        /* Submit Button Styling */
+        form input[type="submit"] {
+            background-color: #28a745;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1.1rem;
+            transition: background-color 0.3s, transform 0.3s ease;
+        }
+
+        form input[type="submit"]:hover {
+            background-color: #218838;
+            transform: translateY(-3px);
+        }
+
+        /* Mobile Responsiveness */
+        @media screen and (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .news-container {
+                padding: 20px;
+            }
+
+            .news-item {
+                padding: 20px;
+            }
+
+            form input[type="text"], form textarea {
+                padding: 12px;
+                font-size: 1rem;
+            }
+
+            form input[type="submit"] {
+                padding: 12px 18px;
+                font-size: 1rem;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -354,7 +627,52 @@ if (isset($_GET['logout'])) {
         </form>
     <?php } ?>
 </div>
+<h3>Create News</h3>
+<form method="POST">
+    <input type="text" name="news_title" placeholder="News Title" required><br>
+    <textarea name="news_content" placeholder="News Content" required></textarea><br>
+    <input type="submit" name="create_news" value="Post News">
+</form>
 
+<h3>News Feed:</h3>
+<div class="news-container">
+    <?php
+    // Display news with update and delete options in one form
+    $query = "SELECT news.*, users.username FROM news JOIN users ON news.user_id = users.id ORDER BY news.created_at DESC";
+    $result = mysqli_query($link, $query);
+
+    while ($row = mysqli_fetch_assoc($result)) {
+        echo "<div class='news-item'>";
+        echo "<h4>" . htmlspecialchars($row['title']) . " <small>by " . htmlspecialchars($row['username']) . " at " . $row['created_at'] . "</small></h4>";
+        echo "<p>" . htmlspecialchars($row['content']) . "</p>";
+
+        // Show form for update and delete if the user is the creator or admin
+        if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
+            if ($_SESSION['role'] === 'admin' || $_SESSION['user_id'] == $row['user_id']) {
+                echo "<div class='update-delete-buttons'>
+                        <form method='POST'>
+                            <input type='hidden' name='news_id' value='" . $row['id'] . "'>
+                            <input type='text' name='news_title' value='" . htmlspecialchars($row['title']) . "' required>
+                            <textarea name='news_content' required>" . htmlspecialchars($row['content']) . "</textarea>
+                            <button type='submit' name='update_news'>Update News</button>
+                            <button type='submit' name='delete_news' onclick=\"return confirm('Are you sure you want to delete this news?');\">Delete News</button>
+                        </form>
+                    </div>";
+            }
+        }
+        echo "</div>";
+    }
+    ?>
+</div>
+
+
+
+
+
+<?php
+// Display all news
+display_news($link);
+?>
 
 </body>
 </html>

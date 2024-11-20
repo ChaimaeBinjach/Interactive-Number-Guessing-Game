@@ -1,84 +1,4 @@
 <?php
-/*
-
- -------------------------------------------------------------------------------
- * All users have the same password "pass123".(admin, user1, user2) password is pass123.
- * The passwords are hashed using the password_hash() function.
- * Default users are inserted into the database with predefined usernames (admin, user1, user2) and a hashed password (pass123).
- * The statistics table stores the total moves, outcome (win or reset), and total correct guesses for each game played, but the results will be shown after the player/user has finished the game.
- *  The game resets when the user clicks the "Start New Game" button after inputting a 5-digit number or when the user guesses the correct number.
- * The game provides feedback for each guess, indicating which digits are correct, misplaced, or wrong.
- * 
-  * This PHP script handles the core logic for the number guessing game, including user authentication, session management, game initialization, 
- * guess processing, feedback generation, statistics tracking, and storing game data in the MySQL database.
- * It ensures that users are authenticated, and manages game flow, including handling guesses, tracking the number of attempts, and providing 
- * feedback on each guess. Additionally, it logs statistics such as total moves, correct guesses, and game outcomes in a relational database.
- * The script also provides functionality for starting new games, resetting the game mid-play, and logging out users.
- * 
- * Key Features:
- * 1. Database Connection:
- *    - Establishes a connection to the MySQL database using MySQLi, with the necessary credentials defined at the start.
- *    - Ensures the existence of a database (`number_guessing_game`) and three essential tables (`users`, `guesses`, and `game_statistics`).
- *    - Uses the `mysqli` class to interact with the database for storing guesses and game statistics.
- *
- * 2. User Authentication:
- *    - The script uses PHP sessions to track whether a user is logged in or not. If a user is logged in, their user ID is stored in the session.
- *    - Ensures that only logged-in users can interact with the game, preventing unauthorized access.
- *    - Displays an error message and halts execution if a user is not logged in or the user ID is missing.
- * 
- * 3. Game Initialization:
- *    - Initializes the game by setting a target number (5-digit random number) and tracking the number of attempts.
- *    - Allows a new game to start or reset an ongoing game by submitting a POST request.
- *    - Each game has a status tracked in the session (either `in_progress`, `won`, or `reset`).
- *
- * 4. Guess Processing:
- *    - Accepts a user’s 5-digit guess and validates it. If the guess is valid (exactly 5 digits), it proceeds to compare the guess with the target number.
- *    - For each guess, the script provides feedback for each digit: whether it is correct, misplaced, or wrong.
- *    - Feedback is stored in the session and also inserted into the database to maintain a historical record of all guesses.
- *    - If the guess is correct, the game is marked as completed, and the statistics are saved.
- * 
- * 5. Game Statistics:
- *    - After each guess, feedback is generated for the user, indicating which digits are correct, misplaced, or incorrect.
- *    - The feedback is saved in the database in JSON format for later retrieval.
- * 
- * 6. Saving Game Statistics:
- *   - When a game is completed (either won or reset), the script saves the game statistics in the `game_statistics` table.
- *    - The script tracks the game statistics, such as total moves, wins, and correct guesses, and stores these in the `game_statistics` table.
- *    - It calculates and displays aggregated statistics like total users, total games, average moves per game, and total correct guesses.
- *    - The script provides a function (`getStatistics()`) that retrieves aggregated statistics from the database, and these statistics are available for display.
- * 
- * 7. User-Specific Statistics:
- *   - The script provides a function (`getUserStatistics()`) to retrieve user-specific statistics based on the user ID.
- *   - User-specific statistics include the total games played, total wins, average moves per game, and win ratio.
- *  - These statistics are displayed to the user, showing their performance in the game.
- * 
- * 8. Logging Out:
- *   - The script allows users to log out by destroying the session and redirecting them to the index page.
- *  - The logout functionality ensures that users can securely end their session and log out of the game.
- * 
- * 9. Error Handling:
- *  - The script includes error handling for database operations, ensuring that any errors are logged to the PHP error log.
- * - It displays error messages when there are issues with database queries or other critical operations.
- *  
- * 10. Security Considerations:
- * - The script uses prepared statements to prevent SQL injection attacks when interacting with the database.
- * - It ensures that user input is sanitized and validated before processing to prevent common security vulnerabilities.
- * - The script uses PHP sessions to manage user authentication and track game state, ensuring that only authenticated users can play the game.
- * - It follows best practices for secure coding, including validating user input, using prepared statements, and securely storing passwords.
- * 
- * 11. Additional Features:
- * - The script provides a user-friendly interface for the number guessing game, displaying feedback for each guess and allowing users to start new games.
- * - It includes a statistics section that shows aggregated statistics for all users and user-specific statistics for the logged-in user.
- * - The script uses CSS for styling the game interface, providing a visually appealing and responsive design.
- * - It includes animations for feedback messages and hover effects for buttons, enhancing the user experience.
- * - The script ensures that users can easily navigate the game, view their game statistics, and log out securely.
- * 
- *
-
- */
-?>
-
-<?php
 session_start();
 
 // Database credentials
@@ -120,7 +40,15 @@ $createTables = [
         total_correct_guesses INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
-    )"
+    )",
+     "CREATE TABLE IF NOT EXISTS `news` (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+)"
 ];
 
 foreach ($createTables as $sql) {
@@ -141,8 +69,79 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
     echo "User not logged in."; // Display an error message if the user is not logged in
     exit();
 }
+///
+// Fetch user role if logged in
+$userRole = null;
+$userId = null;
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] && isset($_SESSION['user_id'])) {
+    $userId = $_SESSION['user_id'];
+    $result = $mysqli->query("SELECT role FROM users WHERE id = $userId");
+    if ($result) {
+        $userRole = $result->fetch_assoc()['role'];
+    }
+}
 
-// Continue with the rest of your code...
+// Handle News CRUD Operations
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Add a new news item
+    if (isset($_POST['add_news']) && isset($_POST['title']) && isset($_POST['content'])) {
+        $title = $mysqli->real_escape_string($_POST['title']);
+        $content = $mysqli->real_escape_string($_POST['content']);
+        $stmt = $mysqli->prepare("INSERT INTO news (title, content, user_id) VALUES (?, ?, ?)");
+        $stmt->bind_param("ssi", $title, $content, $userId);
+        if (!$stmt->execute()) {
+            echo "Error adding news: " . $stmt->error;
+        }
+        $stmt->close();
+    }
+
+    // Edit a news item
+    if (isset($_POST['edit_news']) && isset($_POST['news_id']) && isset($_POST['title']) && isset($_POST['content'])) {
+        $newsId = intval($_POST['news_id']);
+        $title = $mysqli->real_escape_string($_POST['title']);
+        $content = $mysqli->real_escape_string($_POST['content']);
+
+        // Check permission
+        $query = $userRole === 'admin'
+            ? "UPDATE news SET title = ?, content = ? WHERE id = ?"
+            : "UPDATE news SET title = ?, content = ? WHERE id = ? AND user_id = ?";
+        $stmt = $mysqli->prepare($query);
+        $userRole === 'admin' ? $stmt->bind_param("ssi", $title, $content, $newsId) : $stmt->bind_param("ssii", $title, $content, $newsId, $userId);
+
+        if (!$stmt->execute()) {
+            echo "Error editing news: " . $stmt->error;
+        }
+        $stmt->close();
+    }
+
+    // Delete a news item
+    if (isset($_POST['delete_news']) && isset($_POST['news_id'])) {
+        $newsId = intval($_POST['news_id']);
+
+        // Check permission
+        $query = $userRole === 'admin'
+            ? "DELETE FROM news WHERE id = ?"
+            : "DELETE FROM news WHERE id = ? AND user_id = ?";
+        $stmt = $mysqli->prepare($query);
+        $userRole === 'admin' ? $stmt->bind_param("i", $newsId) : $stmt->bind_param("ii", $newsId, $userId);
+
+        if (!$stmt->execute()) {
+            echo "Error deleting news: " . $stmt->error;
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch and Display News
+$news = [];
+$result = $mysqli->query("SELECT news.id, news.title, news.content, news.created_at, news.user_id, users.username
+    FROM news
+    JOIN users ON news.user_id = users.id
+    ORDER BY news.created_at DESC");
+if ($result) {
+    $news = $result->fetch_all(MYSQLI_ASSOC);
+}
+
 
 // Initialize a new game or reset if requested
 if (!isset($_SESSION['target_number']) || isset($_POST['new_game'])) {
@@ -726,6 +725,52 @@ $mysqli->close();
         <form method="post">
             <button type="submit" class="btn" name="logout">Log Out</button>
         </form>
+    </div>
+
+    <script>
+        <?php if ($_SESSION['correct_guess'] ?? false): ?>
+            alert("Congratulations! You guessed the correct number!");
+            <?php $_SESSION['correct_guess'] = false; // Reset the correct guess flag ?>
+        <?php endif; ?>
+    </script>
+
+
+
+      <!-- News Management Section -->
+      <div class="news-section">
+        <h1>News</h1>
+        <?php if ($userId): ?>
+            <form method="POST">
+                <h3>Add News</h3>
+                <input type="text" name="title" placeholder="News Title" required>
+                <textarea name="content" placeholder="News Content" required></textarea>
+                <button type="submit" name="add_news">Add News</button>
+            </form>
+        <?php endif; ?>
+
+        <ul>
+        <?php foreach ($news as $newsItem): ?>
+    <li>
+        <h3><?php echo htmlspecialchars($newsItem['title']); ?></h3>
+        <p><?php echo htmlspecialchars($newsItem['content']); ?></p>
+        <small>By <?php echo htmlspecialchars($newsItem['username']); ?> at <?php echo $newsItem['created_at']; ?></small>
+
+        <?php if ($userRole === 'admin' || $newsItem['user_id'] == $userId): ?>
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="news_id" value="<?php echo $newsItem['id']; ?>">
+                <input type="text" name="title" value="<?php echo htmlspecialchars($newsItem['title']); ?>" required>
+                <textarea name="content"><?php echo htmlspecialchars($newsItem['content']); ?></textarea>
+                <button type="submit" name="edit_news">Edit</button>
+            </form>
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="news_id" value="<?php echo $newsItem['id']; ?>">
+                <button type="submit" name="delete_news">Delete</button>
+            </form>
+        <?php endif; ?>
+    </li>
+<?php endforeach; ?>
+
+        </ul>
     </div>
 
     <script>
