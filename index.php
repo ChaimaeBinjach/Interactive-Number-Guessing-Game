@@ -354,25 +354,27 @@ if (isset($_GET['logout'])) {
             font-family: 'Arial', sans-serif;
             background-color: #eef2f3;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            /*justify-content: center;*/
             align-items: center;
-            height: 100vh;
+            /*height: 100vh;*/
             margin: 0;
             padding: 20px;
         }
 /* Styling for the container*/
-        .container {
+        .container, .news-container {
             background-color: #fff;
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: 500px;
+            margin-bottom: 20px;
             text-align: center;
             transition: transform 0.2s;
         }
 
-        .container:hover {
+        .container:hover, .news-container:hover {
             transform: scale(1.02);
         }
 
@@ -381,7 +383,7 @@ if (isset($_GET['logout'])) {
             margin: 10px 0;
         }
 
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"], textarea {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -391,12 +393,12 @@ if (isset($_GET['logout'])) {
             transition: border 0.3s;
         }
 
-        input[type="text"]:focus, input[type="password"]:focus {
+        input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
             border-color: #28a745;
             outline: none;
         }
 
-        input[type="submit"] {
+        input[type="submit"], .button {
             background-color: #28a745;
             color: white;
             padding: 12px 20px;
@@ -407,7 +409,7 @@ if (isset($_GET['logout'])) {
             transition: background-color 0.3s;
         }
 
-        input[type="submit"]:hover {
+        input[type="submit"]:hover, .button:hover {
             background-color: #218838;
         }
 
@@ -443,154 +445,63 @@ if (isset($_GET['logout'])) {
     background-color: #218838;
 }
 
-/* News section styling */* News Section Styling */
-        .news-container {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-            margin-top: 20px;
-            width: 100%;
-            max-width: 900px;
-        }
-
-        .news-container h3 {
-            font-size: 2rem;
-            color: #333;
-            margin-bottom: 20px;
-            font-weight: 600;
-            text-align: center;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 10px;
-        }
-
-        /* Individual News Item Styling */
-        .news-item {
-            background-color: #fff;
-            border-radius: 12px;
+.news-item {
             padding: 25px;
-            margin-bottom: 20px;
+            border-radius: 12px;
+            background-color: #f9f9f9;
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .news-item:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-        }
-
         .news-item h4 {
+            margin-bottom: 10px;
             font-size: 1.8rem;
             color: #4e4e4e;
-            margin-bottom: 10px;
-            font-weight: 700;
-            transition: color 0.3s;
-        }
-
-        .news-item h4:hover {
-            color: #28a745;
         }
 
         .news-item p {
-            font-size: 1.1rem;
             color: #666;
             line-height: 1.6;
-            margin-bottom: 20px;
         }
 
-        .news-item small {
-            font-size: 0.9rem;
-            color: #999;
-        }
-
-        /* Buttons for Update and Delete */
-        .news-item .update-delete-buttons {
+        .update-delete-buttons {
             display: flex;
-            gap: 15px;
-            justify-content: flex-start;
+            gap: 10px;
+            margin-top: 15px;
         }
 
-        .news-item .update-delete-buttons button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 18px;
-            border: none;
+        .update-delete-buttons button {
+            padding: 10px;
             border-radius: 6px;
+            border: none;
             cursor: pointer;
             font-size: 1rem;
-            transition: background-color 0.3s, transform 0.2s;
         }
 
-        .news-item .update-delete-buttons button:hover {
+        .update-delete-buttons .update {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .update-delete-buttons .update:hover {
             background-color: #0056b3;
-            transform: scale(1.05);
         }
 
-        .news-item .update-delete-buttons button.delete {
+        .update-delete-buttons .delete {
             background-color: #dc3545;
+            color: white;
         }
 
-        .news-item .update-delete-buttons button.delete:hover {
+        .update-delete-buttons .delete:hover {
             background-color: #c82333;
         }
 
-        /* News Creation Form Styling */
-        form input[type="text"], form textarea {
-            width: 100%;
-            padding: 15px;
-            margin: 12px 0;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-size: 1.1rem;
-            transition: border 0.3s ease;
-            box-sizing: border-box;
-        }
-
-        form input[type="text"]:focus, form textarea:focus {
-            border-color: #28a745;
-            outline: none;
-        }
-
-        /* Submit Button Styling */
-        form input[type="submit"] {
-            background-color: #28a745;
-            color: white;
-            padding: 15px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 1.1rem;
-            transition: background-color 0.3s, transform 0.3s ease;
-        }
-
-        form input[type="submit"]:hover {
-            background-color: #218838;
-            transform: translateY(-3px);
-        }
-
+        
         /* Mobile Responsiveness */
         @media screen and (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-
-            .news-container {
-                padding: 20px;
-            }
-
-            .news-item {
-                padding: 20px;
-            }
-
-            form input[type="text"], form textarea {
-                padding: 12px;
-                font-size: 1rem;
-            }
-
-            form input[type="submit"] {
-                padding: 12px 18px;
-                font-size: 1rem;
+            .container, .news-container {
+                width: 90%;
             }
         }
 
@@ -627,17 +538,19 @@ if (isset($_GET['logout'])) {
         </form>
     <?php } ?>
 </div>
-<h3>Create News</h3>
-<form method="POST">
-    <input type="text" name="news_title" placeholder="News Title" required><br>
-    <textarea name="news_content" placeholder="News Content" required></textarea><br>
-    <input type="submit" name="create_news" value="Post News">
-</form>
+<div class="container">
+    <h3> <span class="emoji-pencil">✏️</span> Create News</h3>
+    <form method="POST">
+        <input type="text" name="news_title" placeholder="News Title" required>
+        <textarea name="news_content" placeholder="News Content" required></textarea>
+        <input type="submit" name="create_news" value="Post News">
+    </form>
+</div>
 
-<h3>News Feed:</h3>
 <div class="news-container">
+<h3><span class="emoji-news">📰</span> News Feed</h3>
+
     <?php
-    // Display news with update and delete options in one form
     $query = "SELECT news.*, users.username FROM news JOIN users ON news.user_id = users.id ORDER BY news.created_at DESC";
     $result = mysqli_query($link, $query);
 
@@ -645,27 +558,21 @@ if (isset($_GET['logout'])) {
         echo "<div class='news-item'>";
         echo "<h4>" . htmlspecialchars($row['title']) . " <small>by " . htmlspecialchars($row['username']) . " at " . $row['created_at'] . "</small></h4>";
         echo "<p>" . htmlspecialchars($row['content']) . "</p>";
-
-        // Show form for update and delete if the user is the creator or admin
-        if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
-            if ($_SESSION['role'] === 'admin' || $_SESSION['user_id'] == $row['user_id']) {
-                echo "<div class='update-delete-buttons'>
-                        <form method='POST'>
-                            <input type='hidden' name='news_id' value='" . $row['id'] . "'>
-                            <input type='text' name='news_title' value='" . htmlspecialchars($row['title']) . "' required>
-                            <textarea name='news_content' required>" . htmlspecialchars($row['content']) . "</textarea>
-                            <button type='submit' name='update_news'>Update News</button>
-                            <button type='submit' name='delete_news' onclick=\"return confirm('Are you sure you want to delete this news?');\">Delete News</button>
-                        </form>
-                    </div>";
-            }
+        if (isset($_SESSION['logged_in']) && ($_SESSION['role'] === 'admin' || $_SESSION['user_id'] == $row['user_id'])) {
+            echo "<div class='update-delete-buttons'>";
+            echo "<form method='POST'>
+                    <input type='hidden' name='news_id' value='" . $row['id'] . "'>
+                    <input type='text' name='news_title' value='" . htmlspecialchars($row['title']) . "' required>
+                    <textarea name='news_content' required>" . htmlspecialchars($row['content']) . "</textarea>
+                    <button type='submit' class='update' name='update_news'>Update</button>
+                    <button type='submit' class='delete' name='delete_news' onclick=\"return confirm('Are you sure?');\">Delete</button>
+                  </form>";
+            echo "</div>";
         }
         echo "</div>";
     }
     ?>
 </div>
-
-
 
 
 

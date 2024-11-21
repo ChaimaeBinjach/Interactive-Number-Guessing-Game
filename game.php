@@ -481,20 +481,22 @@ $mysqli->close();
             box-sizing: border-box; /* Ensures consistent box-sizing for all elements */
         }
         body {
-            display: flex; /* Enables flexbox layout for centering */
-            justify-content: center; /* Horizontally centers content */
-            align-items: center; /* Vertically centers content */
-            min-height: 150vh; /* Sets minimum height to full viewport */
-            background: linear-gradient(135deg, #a8e0ff 0%, #e0e7ff 100%); /* Applies a gradient background */
-            font-family: 'Arial', sans-serif; /* Sets the font */
-            color: #2d3748; /* Base color for text */
-        }
+    display: flex;
+    flex-direction: column;  /* Stack all content vertically */
+    justify-content: flex-start;  /* Align from the top */
+    align-items: center;
+    min-height: 150vh; /* Ensure full viewport height */
+    background: linear-gradient(135deg, #a8e0ff 0%, #e0e7ff 100%);
+    font-family: 'Arial', sans-serif;
+    color: #2d3748;
+}
+
         .container {
             background: #ffffff; /* Background color for the main container */
             border-radius: 20px; /* Rounds container corners */
             padding: 50px; /* Sets padding around container content */
             max-width: 800px; /* Maximum width for the container */
-            width: 150%; /* Container width at 90% of its parent */
+            width: 200%; /* Container width at 90% of its parent */
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Adds shadow effect */
             text-align: center; /* Centers text inside the container */
             transition: transform 0.3s ease; /* Adds a smooth transition on hover */
@@ -593,6 +595,92 @@ $mysqli->close();
             font-size: 2rem; /* Font size for result message */
             font-weight: bold; /* Bold text */
             animation: fadeIn 1s ease; /* Adds fade-in animation */
+        }
+           /* News Section */
+           .news-section {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            width: 80%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-top: 50px;
+            text-align: center;
+        }
+        
+         /* News Section */
+         .news-section h2 {
+            font-size: 2rem;
+            color: #4a5568;
+            margin-bottom: 20px;
+        }
+
+        .news-section ul {
+            list-style: none;
+            padding: 0;
+            text-align: left; /* Aligns news content to the left */
+        }
+
+        .news-section li {
+            margin-bottom: 20px; /* Space between news items */
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .news-section h3 {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .news-section p {
+            font-size: 1.1rem;
+            color: #555;
+            margin: 5px 0;
+        }
+
+        .news-section small {
+            display: block;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #777;
+        }
+
+        /* Buttons in News Section */
+        .news-section form button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #38a169;
+            color: white;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .news-section form button:hover {
+            background: #2f855a;
+        }
+
+        /* Input fields in News Section */
+        .news-section input[type="text"], .news-section textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 1rem;
+            border: 2px solid #4a5568;
+            border-radius: 10px;
+            background: #f7fafc;
+            color: #2d3748;
+            transition: border-color 0.3s ease;
+        }
+
+        .news-section input[type="text"]:focus, .news-section textarea:focus {
+            border-color: #38a169;
+            outline: none;
         }
 
         /* Animations */
@@ -736,41 +824,44 @@ $mysqli->close();
 
 
 
-      <!-- News Management Section -->
-      <div class="news-section">
-        <h1>News</h1>
-        <?php if ($userId): ?>
-            <form method="POST">
-                <h3>Add News</h3>
-                <input type="text" name="title" placeholder="News Title" required>
-                <textarea name="content" placeholder="News Content" required></textarea>
-                <button type="submit" name="add_news">Add News</button>
-            </form>
-        <?php endif; ?>
+          <!-- News Section -->
+        <div class="news-section">
+            <h2>📰 News</h2>
+            <?php if ($userId): ?>
+                <form method="POST">
+                <h3 style="font-size: 1.8rem; color: #4a5568; text-align: center; margin-bottom: 20px; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);">
+    📝Share Your Feedback: Add News or Comments About the Game
+</h3>
 
-        <ul>
-        <?php foreach ($news as $newsItem): ?>
-    <li>
-        <h3><?php echo htmlspecialchars($newsItem['title']); ?></h3>
-        <p><?php echo htmlspecialchars($newsItem['content']); ?></p>
-        <small>By <?php echo htmlspecialchars($newsItem['username']); ?> at <?php echo $newsItem['created_at']; ?></small>
 
-        <?php if ($userRole === 'admin' || $newsItem['user_id'] == $userId): ?>
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="news_id" value="<?php echo $newsItem['id']; ?>">
-                <input type="text" name="title" value="<?php echo htmlspecialchars($newsItem['title']); ?>" required>
-                <textarea name="content"><?php echo htmlspecialchars($newsItem['content']); ?></textarea>
-                <button type="submit" name="edit_news">Edit</button>
-            </form>
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="news_id" value="<?php echo $newsItem['id']; ?>">
-                <button type="submit" name="delete_news">Delete</button>
-            </form>
-        <?php endif; ?>
-    </li>
-<?php endforeach; ?>
+                    <input type="text" name="title" placeholder="News Title" required>
+                    <textarea name="content" placeholder="News Content" rows="4" required></textarea>
+                    <button type="submit" name="add_news">Add News </button>
+                </form>
+            <?php endif; ?>
 
-        </ul>
+            <ul>
+                <?php foreach ($news as $newsItem): ?>
+                    <li>
+                        <h3><?php echo htmlspecialchars($newsItem['title']); ?></h3>
+                        <p><?php echo htmlspecialchars($newsItem['content']); ?></p>
+                        <small>By <?php echo htmlspecialchars($newsItem['username']); ?> at <?php echo $newsItem['created_at']; ?></small>
+                        <?php if ($userRole === 'admin' || $newsItem['user_id'] == $userId): ?>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="news_id" value="<?php echo $newsItem['id']; ?>">
+                                <input type="text" name="title" value="<?php echo htmlspecialchars($newsItem['title']); ?>" required>
+                                <textarea name="content" rows="2"><?php echo htmlspecialchars($newsItem['content']); ?></textarea>
+                                <button type="submit" name="edit_news">Edit</button>
+                            </form>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="news_id" value="<?php echo $newsItem['id']; ?>">
+                                <button type="submit" name="delete_news">Delete</button>
+                            </form>
+                        <?php endif; ?>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
     </div>
 
     <script>
