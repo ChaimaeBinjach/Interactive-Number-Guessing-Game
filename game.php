@@ -1,4 +1,66 @@
 <?php
+/**
+ * Number Guessing Game with News and Feedback Functionality
+ * After the user logs in, they can play a number guessing game, view game statistics, and post news articles and feedback(Like any comment or feedback related to the game)
+ * Overview:
+ * This application combines a number guessing game with social and administrative features. Users can:
+ * - Play a guessing game where they attempt to guess a randomly generated 5-digit number.
+ * - View aggregated game statistics such as total users, games played, and average moves per game.
+ * - Log in to access personalized features and game history.
+ * - Post, edit, or delete news articles and feedback visible to all users, both before and after login.
+ * - Admins have additional permissions to manage all users' news posts.
+ * -The statistics will be displayed for the logged-in user once they complete the game, showing their total performance and results at the end.
+ * 
+ * Rules and Functionality:
+ * - Users must log in to track game history and access advanced features.
+ * - The target number is unique and randomly generated for each session.
+ * - Feedback for guesses includes "correct" (right digit and position), "misplaced" (right digit, wrong position), and "wrong" (digit not in the number).
+ * - News articles and feedback posts must adhere to platform guidelines and can be moderated by admins.
+ * 
+ * Key Features:
+ * 1. **User Management:**
+ *    - Users are stored in a database with unique usernames.
+ *    - Sessions are managed for login/logout and user identification.
+ * 
+ * 2. **Number Guessing Game:**
+ *    - Generates a 5-digit target number.
+ *    - Provides feedback on each guess (correct, misplaced, wrong).
+ *    - Tracks game statistics including total moves and outcomes.
+ *    - Saves game data for logged-in users.
+ *    - Supports resetting and starting new games.
+ * 
+ * 3. **Game Statistics:**
+ *    - Aggregates data such as total users, games played, average moves, and total correct guesses.
+ *    - Displays these statistics to the user.
+ * 
+ * 4. **News and Feedback System:**
+ *    - Users can post feedback or news articles (e.g., sharing achievements like winning a game).
+ *    - Posts are visible on the main page before and after login.
+ *    - Users can edit or delete their own posts.
+ *    - Admins can manage (edit/delete) all posts.
+ * 
+ * 5. **Database Design:**
+ *    - `users`: Stores user information.
+ *    - `guesses`: Stores game guesses and feedback.
+ *    - `game_statistics`: Tracks game outcomes and performance.
+ *    - `news`: Stores user-generated news and feedback.
+ * 
+ * 6. **Security Features:**
+ *    - SQL injection protection via prepared statements.
+ *    - Session management with ID regeneration for security.
+ *    - Role-based access control for news management (user vs. admin).
+ * 
+ * 7. **Error Handling:**
+ *    - Logs errors to avoid exposing sensitive details to users.
+ *    - Provides user-friendly messages for login and input validation.
+ * 
+ * This application is an engaging platform combining gaming with a social component, encouraging user interaction and achievements sharing.
+ */
+
+
+ ?>
+
+<?php
 session_start();
 
 // Database credentials
@@ -53,7 +115,7 @@ $createTables = [
 
 foreach ($createTables as $sql) {
     if (!$mysqli->query($sql)) {
-        die("Table creation failed: " . $mysqli->error);
+        die("Table creation failed: " . $mysqli->error); // Exit if the table creation fails
     }
 }
 
@@ -62,7 +124,7 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
     if (isset($_SESSION['user_id'])) {
         $userId = $_SESSION['user_id']; // Get the user ID from the session
     } else {
-        echo "User ID is missing in session.";
+        echo "User ID is missing in session."; // Display an error message if the user ID is not set
         exit();
     }
 } else {
@@ -71,13 +133,13 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
 }
 ///
 // Fetch user role if logged in
-$userRole = null;
-$userId = null;
+$userRole = null; // Initialize user role
+$userId = null; // Initialize user ID
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] && isset($_SESSION['user_id'])) {
-    $userId = $_SESSION['user_id'];
-    $result = $mysqli->query("SELECT role FROM users WHERE id = $userId");
+    $userId = $_SESSION['user_id']; // Get the user ID from the session
+    $result = $mysqli->query("SELECT role FROM users WHERE id = $userId"); // Query to get the user role
     if ($result) {
-        $userRole = $result->fetch_assoc()['role'];
+        $userRole = $result->fetch_assoc()['role']; // Get the user role
     }
 }
 
@@ -85,48 +147,48 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] && isset($_SESSION['
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Add a new news item
     if (isset($_POST['add_news']) && isset($_POST['title']) && isset($_POST['content'])) {
-        $title = $mysqli->real_escape_string($_POST['title']);
-        $content = $mysqli->real_escape_string($_POST['content']);
-        $stmt = $mysqli->prepare("INSERT INTO news (title, content, user_id) VALUES (?, ?, ?)");
-        $stmt->bind_param("ssi", $title, $content, $userId);
+        $title = $mysqli->real_escape_string($_POST['title']);  // Escape special characters in the input
+        $content = $mysqli->real_escape_string($_POST['content']);  // Escape special characters in the input
+        $stmt = $mysqli->prepare("INSERT INTO news (title, content, user_id) VALUES (?, ?, ?)"); // Prepare the SQL statement
+        $stmt->bind_param("ssi", $title, $content, $userId); // Bind the parameters
         if (!$stmt->execute()) {
-            echo "Error adding news: " . $stmt->error;
+            echo "Error adding news: " . $stmt->error; // Display an error message if the news item cannot be added
         }
-        $stmt->close();
+        $stmt->close(); // Close the prepared statement
     }
 
     // Edit a news item
     if (isset($_POST['edit_news']) && isset($_POST['news_id']) && isset($_POST['title']) && isset($_POST['content'])) {
-        $newsId = intval($_POST['news_id']);
-        $title = $mysqli->real_escape_string($_POST['title']);
-        $content = $mysqli->real_escape_string($_POST['content']);
+        $newsId = intval($_POST['news_id']); // Convert the news ID to an integer
+        $title = $mysqli->real_escape_string($_POST['title']); // Escape special characters in the input
+        $content = $mysqli->real_escape_string($_POST['content']); // Escape special characters in the input
 
         // Check permission
         $query = $userRole === 'admin'
             ? "UPDATE news SET title = ?, content = ? WHERE id = ?"
-            : "UPDATE news SET title = ?, content = ? WHERE id = ? AND user_id = ?";
-        $stmt = $mysqli->prepare($query);
-        $userRole === 'admin' ? $stmt->bind_param("ssi", $title, $content, $newsId) : $stmt->bind_param("ssii", $title, $content, $newsId, $userId);
+            : "UPDATE news SET title = ?, content = ? WHERE id = ? AND user_id = ?"; // Update the news item based on user role
+        $stmt = $mysqli->prepare($query); // Prepare the SQL statement
+        $userRole === 'admin' ? $stmt->bind_param("ssi", $title, $content, $newsId) : $stmt->bind_param("ssii", $title, $content, $newsId, $userId); // Bind the parameters
 
         if (!$stmt->execute()) {
-            echo "Error editing news: " . $stmt->error;
+            echo "Error editing news: " . $stmt->error; // Display an error message if the news item cannot be edited
         }
         $stmt->close();
     }
 
     // Delete a news item
     if (isset($_POST['delete_news']) && isset($_POST['news_id'])) {
-        $newsId = intval($_POST['news_id']);
+        $newsId = intval($_POST['news_id']); // Convert the news ID to an integer
 
         // Check permission
         $query = $userRole === 'admin'
             ? "DELETE FROM news WHERE id = ?"
             : "DELETE FROM news WHERE id = ? AND user_id = ?";
-        $stmt = $mysqli->prepare($query);
-        $userRole === 'admin' ? $stmt->bind_param("i", $newsId) : $stmt->bind_param("ii", $newsId, $userId);
+        $stmt = $mysqli->prepare($query); // Prepare the SQL statement
+        $userRole === 'admin' ? $stmt->bind_param("i", $newsId) : $stmt->bind_param("ii", $newsId, $userId); // Bind the parameters
 
         if (!$stmt->execute()) {
-            echo "Error deleting news: " . $stmt->error;
+            echo "Error deleting news: " . $stmt->error; // Display an error message if the news item cannot be deleted
         }
         $stmt->close();
     }
@@ -137,9 +199,9 @@ $news = [];
 $result = $mysqli->query("SELECT news.id, news.title, news.content, news.created_at, news.user_id, users.username
     FROM news
     JOIN users ON news.user_id = users.id
-    ORDER BY news.created_at DESC");
+    ORDER BY news.created_at DESC"); // Query to get news items
 if ($result) {
-    $news = $result->fetch_all(MYSQLI_ASSOC);
+    $news = $result->fetch_all(MYSQLI_ASSOC); // Fetch all news items
 }
 
 
@@ -216,7 +278,7 @@ function processGuess($guess) {
     // Store the guess in the database
     $feedback_json = json_encode($feedback);
     $stmt = $mysqli->prepare("INSERT INTO guesses (guess, feedback) VALUES (?, ?)"); // Prepare the SQL statement
-    $stmt->bind_param("ss", $guess, $feedback_json);
+    $stmt->bind_param("ss", $guess, $feedback_json); // Bind the parameters
     if (!$stmt->execute()) {
         error_log("Database insert error: " . $stmt->error); // Log any errors
     }
@@ -302,7 +364,7 @@ function getStatistics() {
         'total_games' => $total_games,
         'average_moves' => round($average_moves, 1),
         'total_correct' => $total_correct,
-    ];
+    ]; // Return the aggregated statistics
 }
 /*
 $stats = getStatistics();
@@ -421,26 +483,26 @@ function getUserStatistics($userId) {
      $total_users = $stmt->fetch_assoc()['total_users'] ?? 0; // Get the total number of users
 
     // Total games played by the user
-    $stmt = $mysqli->prepare("SELECT COUNT(*) AS total_games FROM game_statistics WHERE user_id = ?");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $total_games = $result->fetch_assoc()['total_games'] ?? 0;
+    $stmt = $mysqli->prepare("SELECT COUNT(*) AS total_games FROM game_statistics WHERE user_id = ?"); // Prepare the SQL statement
+    $stmt->bind_param("i", $userId); // Bind the parameters
+    $stmt->execute(); // Execute the query
+    $result = $stmt->get_result(); // Get the result
+    $total_games = $result->fetch_assoc()['total_games'] ?? 0; // Get the total number of games played by the user
     $stmt->close();
 
     // Total wins by the user
     $stmt = $mysqli->prepare("SELECT COUNT(*) AS total_wins FROM game_statistics WHERE user_id = ? AND outcome = 'win'");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $total_wins = $result->fetch_assoc()['total_wins'] ?? 0;
-    $stmt->close();
+    $stmt->bind_param("i", $userId); // Bind the parameters
+    $stmt->execute();   // Execute the query
+    $result = $stmt->get_result(); // Get the result
+    $total_wins = $result->fetch_assoc()['total_wins'] ?? 0; // Get the total number of wins by the user
+    $stmt->close(); // Close the prepared statement
 
     // Average moves per game for the user
     $stmt = $mysqli->prepare("SELECT AVG(total_moves) AS average_moves FROM game_statistics WHERE user_id = ?");
     $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    $stmt->execute(); // Execute the query
+    $result = $stmt->get_result(); // Get the result
     $average_moves = $result->fetch_assoc()['average_moves'] ?? 0;
     $stmt->close();
 // Calculate the win ratio

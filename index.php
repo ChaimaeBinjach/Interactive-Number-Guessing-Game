@@ -1,47 +1,49 @@
 <?php
 /*
+ * Key Features :
+ * 1. User Authentication and Registration:
+ *    - Users must log in to post, update, or delete news.
+ *    - Default users (admin, user1, user2) are created with the hashed password "pass123".
+ *    - Secure login and registration processes using hashed passwords (`password_hash()`) and SQL injection protection via prepared statements.
  * 
- -------------------------------------------------------------------------------
- * all the users have the same password "pass123".
- * The passwords are hashed using the password_hash() function.
- * The default users are inserted into the database with predefined usernames (admin, user1, user2) and a hashed password (pass123).
-This PHP file serves as the core logic for user authentication, registration, and statistics management for a number guessing game.
- It establishes a connection to a MySQL database and ensures that the necessary database and tables are created if they do not exist.
-  
- Key Features:
-    1. Database Connection: 
-   - The script connects to a MySQL database using MySQLi and creates the database (`number_guessing_game`) and a `users` table if they don't exist.
-   - It handles potential database errors and ensures the necessary structure is in place before proceeding with user operations.
- 
-    2. User Management:
-    - Login: Handles user login using a secure process with prepared statements to prevent SQL injection. 
-    It verifies the user's credentials by comparing the hashed password stored in the database.
-    - Registration: Allows new users to register with a username and password. Passwords are hashed using PHP's `password_hash()` function for secure storage.
-    The script also checks if the username already exists in the database to prevent duplicate registrations.
-    - Session Management: Uses PHP's session functionality to track whether a user is logged in or not. Session variables are set to store user information (username, user ID, role).
- 
-    3. Default Users:
-    - If the users table is empty (e.g., on a fresh setup), default users are inserted into the database with predefined usernames (`admin`, `user1`, `user2`) and a hashed password (`pass123`).
- 
-    4. Error Handling:
-    - The script includes error handling for database connections, user authentication issues, and session handling.
-    - Error messages are displayed to the user in case of invalid input (e.g., incorrect password, username not found).
- 
-    5. User Statistics:
-    - Displays user-specific game statistics such as games played, average moves per game, and total wins, by querying the `game_statistics` table.
-    - The statistics are displayed when a user is logged in, providing a personalized experience based on the user's activity.
-
-    6. Frontend UI:
-    - The script dynamically generates HTML content to show either the login form or a welcome message with options to play the game and log out, depending on the user's session status.
-    - A registration form is hidden by default and can be toggled for users who do not have an account yet.
- 
-    7. Security:
-    - Passwords are never stored in plain text. Instead, they are hashed using the `password_hash()` function, and the login validation is done using `password_verify()`.
-    - SQL injection is mitigated by using prepared statements for all database queries involving user input.
-
- The primary purpose of this file is to handle the user interaction and authentication for the game, ensuring secure login and registration, 
- as well as managing user sessions and displaying personalized game statistics.
+ * 2. News Management:
+ *    - News items include a title, content, author, and timestamp.
+ *    - Logged-in users can create, update, and delete their own news posts.
+ *    - Admins can manage all news posts.
+ *    - Update and delete actions are restricted to authorized users based on roles and ownership.
+ * 
+ * 3. Database Structure and Security:
+ *    - The database (`number_guessing_game`) includes `users` and `news` tables.
+ *    - Tables are created automatically if they don’t exist.
+ *    - SQL injection is mitigated with prepared statements, and passwords are stored securely.
+ * 
+ * 4. User Statistics:
+ *    - Displays personalized game statistics for logged-in users, such as games played and average moves .
+ * 
+ * 5. Error Handling:
+ *    - Clear error messages for invalid inputs (e.g., empty fields, unauthorized actions).
+ * 
+ * 6. Frontend and Responsiveness:
+ *    - Responsive news feed showing all news entries before login.
+ *    - Enhanced UI for logged-in users to manage their news and view personalized stats.
+ * 
+ * Detailed Explanation:
+ * -------------------------------------------------------------------------------
+ * - The user statistics are displayed when logged in to provide a personalized experience.
+ * - The news table is created if it doesn't exist, and news entries are sorted by creation date in descending order.
+ * - Users can create news entries with a title and content, which are stored in the database.
+ * - Update and delete buttons are visible only to the creator of the news or an admin.
+ * - The script uses sessions to track login states and role-specific privileges.
+ * - Secure handling of news operations includes permission checks to prevent unauthorized actions.
+ * - Default users are inserted into the database on a fresh setup.
+ * - The script dynamically generates HTML content for login, registration, and personalized stats.
+ * 
+ * Primary Purpose:
+ * - To manage user authentication, registration, and statistics for a number guessing game.
+ * - To provide a platform for logged-in users to create, manage, and interact with news entries securely.
  */
+
+
 ?>
 
 
@@ -219,68 +221,72 @@ if (!mysqli_query($link, $news_table_query)) {
 }
 
 // Handle news creation
-if (isset($_POST['create_news'])) {
+if (isset($_POST['create_news'])) { // Check if the 'create_news' POST request is submitted.
     if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
-        $title = trim($_POST['news_title']);
-        $content = trim($_POST['news_content']);
-        $user_id = $_SESSION['user_id'];
+        $title = trim($_POST['news_title']); // Retrieve and trim the news title from the POST request to remove extra whitespace.
+        $content = trim($_POST['news_content']); // Retrieve and trim the news content from the POST request.
+        $user_id = $_SESSION['user_id']; // Get the user ID of the logged-in user from the session.
 
         if (!empty($title) && !empty($content)) {
             $stmt = mysqli_prepare($link, "INSERT INTO news (user_id, title, content) VALUES (?, ?, ?)");
             mysqli_stmt_bind_param($stmt, "iss", $user_id, $title, $content);
             if (mysqli_stmt_execute($stmt)) {
-                $_SESSION['message'] = "News created successfully!";
+                $_SESSION['message'] = "News created successfully!"; // Set a success message in the session.
             } else {
+                // Set an error message in the session if there is an issue with the SQL execution.
                 $_SESSION['error'] = "Error creating news: " . mysqli_error($link);
             }
         } else {
+            // Set an error message if either the title or content is empty.
             $_SESSION['error'] = "Title and content cannot be empty.";
         }
     } else {
+        // Set an error message if the user is not logged in.
         $_SESSION['error'] = "You must be logged in to create news.";
     }
 }
 
 // Handle news update
-if (isset($_POST['update_news'])) {
-    $news_id = $_POST['news_id'];
-    $title = trim($_POST['news_title']);
-    $content = trim($_POST['news_content']);
-    $user_id = $_SESSION['user_id'];
-    $role = $_SESSION['role'];
+if (isset($_POST['update_news'])) { // Check if the 'update_news' POST request is submitted.
+    $news_id = $_POST['news_id'];  // Retrieve the ID of the news post to be updated.
+    $title = trim($_POST['news_title']); // Retrieve and trim the updated news title.
+    $content = trim($_POST['news_content']); // Retrieve and trim the updated news content.
+    $user_id = $_SESSION['user_id']; // Get the user ID of the logged-in user from the session.
+    $role = $_SESSION['role']; // Get the role of the logged-in user from the session.
 
     // Allow only the creator or admin to update
     $check_query = $role === 'admin' 
         ? "SELECT * FROM news WHERE id = ?"
-        : "SELECT * FROM news WHERE id = ? AND user_id = ?";
+        : "SELECT * FROM news WHERE id = ? AND user_id = ?"; // Check if the user has permission to update the news post.
     
-    $stmt = mysqli_prepare($link, $check_query);
+    $stmt = mysqli_prepare($link, $check_query);    // Prepare the SQL statement.
     if ($role === 'admin') {
-        mysqli_stmt_bind_param($stmt, "i", $news_id);
+        mysqli_stmt_bind_param($stmt, "i", $news_id); // Bind only the news ID for admin.
+
     } else {
-        mysqli_stmt_bind_param($stmt, "ii", $news_id, $user_id);
+        mysqli_stmt_bind_param($stmt, "ii", $news_id, $user_id); // Bind both the news ID and user ID for regular users.
     }
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    mysqli_stmt_execute($stmt); // Execute the prepared statement.
+    $result = mysqli_stmt_get_result($stmt); // Get the result.
 
     if (mysqli_num_rows($result) > 0) {
-        $update_query = "UPDATE news SET title = ?, content = ? WHERE id = ?";
-        $stmt = mysqli_prepare($link, $update_query);
+        $update_query = "UPDATE news SET title = ?, content = ? WHERE id = ?"; // Update the news post.
+        $stmt = mysqli_prepare($link, $update_query); // Prepare the SQL statement.
         mysqli_stmt_bind_param($stmt, "ssi", $title, $content, $news_id);
         if (mysqli_stmt_execute($stmt)) {
-            $_SESSION['message'] = "News updated successfully!";
+            $_SESSION['message'] = "News updated successfully!"; // Set a success message in the session.
         } else {
-            $_SESSION['error'] = "Error updating news: " . mysqli_error($link);
+            $_SESSION['error'] = "Error updating news: " . mysqli_error($link); // Set an error message if there is an issue with the SQL execution.
         }
     } else {
-        $_SESSION['error'] = "You don't have permission to update this news.";
+        $_SESSION['error'] = "You don't have permission to update this news."; // Set an error message if the user is not authorized to update the news post.
     }
 }
 
 if (isset($_POST['delete_news'])) {
-    $news_id = intval($_POST['news_id']);
-    $user_id = $_SESSION['user_id'];
-    $role = $_SESSION['role'];
+    $news_id = intval($_POST['news_id']); // Get the ID of the news post to be deleted
+    $user_id = $_SESSION['user_id']; // Get the user ID of the logged-in user
+    $role = $_SESSION['role']; // Get the role of the logged-in user
 
     // Check if the user has permission to delete
     $query = ($role === 'admin')
@@ -289,13 +295,13 @@ if (isset($_POST['delete_news'])) {
     
     $stmt = mysqli_prepare($link, $query); // Use $link here
     if ($role === 'admin') {
-        mysqli_stmt_bind_param($stmt, "i", $news_id);
+        mysqli_stmt_bind_param($stmt, "i", $news_id); // Bind only the news ID for admin
     } else {
-        mysqli_stmt_bind_param($stmt, "ii", $news_id, $user_id);
+        mysqli_stmt_bind_param($stmt, "ii", $news_id, $user_id); // Bind both the news ID and user ID for regular users
     }
 
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    mysqli_stmt_execute($stmt); // Execute the prepared statement
+    $result = mysqli_stmt_get_result($stmt); // Get the result
 
     if ($result->num_rows > 0) {
         // User is authorized to delete
@@ -303,15 +309,15 @@ if (isset($_POST['delete_news'])) {
         $stmt = mysqli_prepare($link, $delete_query); // Use $link here
         mysqli_stmt_bind_param($stmt, "i", $news_id);
         if (mysqli_stmt_execute($stmt)) {
-            $_SESSION['message'] = "News deleted successfully!";
+            $_SESSION['message'] = "News deleted successfully!"; // Set a success message in the session
         } else {
-            $_SESSION['error'] = "Error deleting news: " . mysqli_error($link);
+            $_SESSION['error'] = "Error deleting news: " . mysqli_error($link);     // Set an error message if there is an issue with the SQL execution
         }
     } else {
-        $_SESSION['error'] = "You don't have permission to delete this news.";
+        $_SESSION['error'] = "You don't have permission to delete this news."; // Set an error message if the user is not authorized to delete the news post
     }
     mysqli_stmt_close($stmt);
-    header("Location: index.php");
+    header("Location: index.php"); // Redirect to the index page after deleting the news post
     exit();
 }
 
@@ -320,7 +326,7 @@ if (isset($_POST['delete_news'])) {
 // Display news entries
 function display_news($link) {
     $query = "SELECT news.*, users.username FROM news JOIN users ON news.user_id = users.id ORDER BY news.created_at DESC";
-    $result = mysqli_query($link, $query);
+    $result = mysqli_query($link, $query); // Execute the query
 
     
 }
