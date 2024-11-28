@@ -1,12 +1,6 @@
 <?php
-/*
- * Name : Chaimae Binjach
- *Neptun Code: GV6WH9
- *Date : 28/11/2024
- *Assignment 5 : Task5
- 
-game, statistics and news page
-
+/**
+ * 
  * Number Guessing Game with News and Feedback Functionality
  * After the user logs in, they can play a number guessing game, view game statistics, and post news articles and feedback(Like any comment or feedback related to the game)
  * Overview:
