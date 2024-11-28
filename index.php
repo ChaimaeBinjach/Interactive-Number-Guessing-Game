@@ -1,5 +1,7 @@
 <?php
 /*
+
+ * 
  * Key Features :
  * 1. User Authentication and Registration:
  *    - Users must log in to post, update, or delete news.
